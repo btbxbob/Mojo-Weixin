@@ -26,6 +26,7 @@ require"rememberip"
 require"TALK"
 --require"seventhsea"
 require"scp"
+require"calcmd5"
 --loadfile("luascript\\router.lua")()
 --loadfile("luascript\\rss.lua")()
 
@@ -40,6 +41,7 @@ function main(sayfunc,msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--getlink(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	roll(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	dnddice(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
+	calcmd5(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--woddice(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--seventhsea(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--dictionary(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
