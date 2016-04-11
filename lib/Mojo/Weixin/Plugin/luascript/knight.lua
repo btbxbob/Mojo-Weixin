@@ -14,7 +14,7 @@ reaction={
 "啥？\n“不小心”踩了[buddy_name]一脚。"
 }
 function knight(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
-	print(qun_num)
+--	print(qun_num)
 	if qun_num~=2111751848 and qun_num~=2020012687 then return end
 	math.randomseed(os.time()+n)
 	math.random()
