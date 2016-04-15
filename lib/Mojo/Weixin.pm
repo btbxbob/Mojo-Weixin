@@ -1,5 +1,5 @@
 package Mojo::Weixin;
-our $VERSION = '1.0.8';
+our $VERSION = '1.1.0';
 use Mojo::Weixin::Base 'Mojo::EventEmitter';
 use Mojo::IOLoop;
 use Mojo::Weixin::Log;
@@ -23,6 +23,7 @@ has keep_cookie         => 1;
 has user    => sub {+{}};
 has friend  => sub {[]};
 has group   => sub {[]};
+has data    => sub {+{}};
 
 has version => $Mojo::Weixin::VERSION;
 has plugins => sub{+{}};
