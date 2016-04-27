@@ -9,7 +9,7 @@ use Mojo::Weixin::Client::Remote::_sync;
 use Mojo::Weixin::Message::Handle;
 use Mojo::IOLoop::Delay;
 
-use base qw(Mojo::Weixin::Request Mojo::Weixin::Client::Cron);
+use base qw(Mojo::Weixin::Request);
 
 sub login{
     my $self = shift;
@@ -136,9 +136,11 @@ sub spawn {
     my $self = shift;
     my %opt = @_;
     require Mojo::Weixin::Run;
-    my $run = Mojo::Weixin::Run->new(ioloop=>$self->ioloop,log=>$self->log);
+    my $is_blocking = delete $opt{is_blocking};
+    my $run = Mojo::Weixin::Run->new(ioloop=>($is_blocking?Mojo::IOLoop->new:$self->ioloop),log=>$self->log);
     $run->max_forks(delete $opt{max_forks}) if defined $opt{max_forks};
     $run->spawn(%opt);
+    $run->start if $is_blocking;
     $run;
 }
 
@@ -236,6 +238,11 @@ sub mail{
         return $@?(0,$@):(1,);
     }
 
+}
+sub add_job {
+    my $self = shift;
+    require Mojo::Weixin::Client::Cron;
+    $self->Mojo::Weixin::Client::Cron::add_job(@_);
 }
 
 1;

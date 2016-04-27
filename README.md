@@ -1,4 +1,4 @@
-Mojo-Weixin v1.1.0 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.svg?branch=master)](https://travis-ci.org/sjdy521/Mojo-Weixin)
+Mojo-Weixin v1.1.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.svg?branch=master)](https://travis-ci.org/sjdy521/Mojo-Weixin)
 ========================
 使用Perl语言编写的微信客户端框架，基于Mojolicious，要求Perl版本5.10+，可通过插件提供基于HTTP协议的api接口供其他语言或系统调用
 
@@ -69,7 +69,7 @@ Mojo-Weixin v1.1.0 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 
 ###安装方法
 
-推荐使用[cpanm](https://metacpan.org/pod/distribution/App-cpanminus/bin/cpanm)在线安装[Mojo::Weixin](https://metacpan.org/pod/distribution/Mojo-Weixin/doc/Weixin.pod)模块 
+推荐使用[cpanm](https://metacpan.org/pod/distribution/App-cpanminus/bin/cpanm)在线安装[Mojo::Weixin](https://metacpan.org/pod/distribution/Mojo-Weixin/doc/Weixin.pod)模块, 如果使用docker方式请参见[Docker镜像安装及使用方法](Docker.md)
 
 1. *安装perl*
   

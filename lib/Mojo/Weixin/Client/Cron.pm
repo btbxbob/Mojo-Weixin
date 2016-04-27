@@ -1,10 +1,19 @@
 package Mojo::Weixin::Client::Cron;
 use POSIX qw(mktime);
+BEGIN{
+    our $is_module_ok = 0;
+    eval{
+        require Time::Piece;
+        require Time::Seconds;
+        Time::Piece->import;
+        Time::Seconds->import;
+    };
+    $is_module_ok = 1 if not $@;
+}
 sub add_job{
     my $self = shift;
-    eval{ require Time::Piece;require Time::Seconds; } ;
-    if($@){
-        $self->error("调用add_job，请先安装模块 Time::Piece Time::Seconds 两个模块");
+    if(not $is_module_ok){
+        $self->error("调用add_job方法请先确保安装模块 Time::Piece 和 Time::Seconds");
         return;
     }
     my($type,$nt,$callback) = @_;
@@ -61,9 +70,8 @@ sub add_job{
         }        
     }    
     
-    $self->debug("[$type]下一次触发时间为：" . $next->strftime("%Y/%m/%d %H:%M:%S\n")); 
+    $self->debug("[$type]下一次触发时间为：" . $next->strftime("%Y/%m/%d %H:%M:%S")); 
     $delay = $next - $now;
-    my $rand_watcher_id = rand();
     $self->timer($delay,sub{
         eval{
             $callback->();
