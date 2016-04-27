@@ -107,12 +107,12 @@ sub call{
 #            $client->reply_message($msg,$reply,sub{$_[1]->msg_from("bot")}) if $reply;
 #        });
 #
-#		my $time =strftime("%H:%M:%S",localtime($msg->msg_time));
+		my $time =strftime("%H:%M:%S",localtime($msg->time));
 		
 		lua_main(sub{
 			my $arg = shift;
 			$client->reply_message($msg,$arg,sub{$_[1]->from("bot")});
-		},$msg->content,"",$msg->sender->name);
+		},$msg->content, $time ,$msg->sender->name);
 #		if ($msg->is_at) {
 #			$client->reply_message($msg,"en?",sub{$_[1]->msg_from("bot")});
 #		}
