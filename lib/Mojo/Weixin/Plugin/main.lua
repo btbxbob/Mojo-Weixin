@@ -26,6 +26,7 @@ require"rememberip"
 require"TALK"
 --require"seventhsea"
 require"scp"
+require"yineng2"
 require"calcmd5"
 --loadfile("luascript\\router.lua")()
 --loadfile("luascript\\rss.lua")()
@@ -58,6 +59,7 @@ function main(sayfunc,msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--readip(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--setip(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	talk(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
+	yineng(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--scp(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--router(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--rss(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
