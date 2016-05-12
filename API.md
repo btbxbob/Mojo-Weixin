@@ -174,6 +174,7 @@ $client->load("Openwx",data=>{
     listen => [{host=>xxx,port=>xxx}],           #可选，发送消息api监听端口
     post_api=> 'http://127.0.0.1:4000/post_api', #可选，接收消息或事件的上报地址
     post_event => 1,                             #可选，是否上报事件，为了向后兼容性，默认值为0
+    post_media_data => 1,                        #可选，是否上报经过urlencode编码的图片原始数据，默认值为1
 });
 ```
 #### 接收消息上报 
@@ -198,6 +199,35 @@ Content-Type: application/json
     "sender":"灰灰",
     "id":"10856",
     "type":"group_message",
+    "format": "text",
+    "post_type": "receive_message"
+}
+
+```
+
+图片消息上报
+
+```
+{   "receiver":"小灰",
+    "time":"1442542632",
+    "content":"[media](\/tmp\/mojo_weixin_media_Ja9l.jpg)",
+    "media_path": "\/tmp\/mojo_weixin_media_Ja9l.jpg",
+    "media_id": "2273934420223351581",
+    "media_mime":"image\/jpg",
+    "media_name": "mojo_weixin_media_Ja9l.jpg",
+    "media_size": "1234567",
+    "media_mtime": "1462763788",
+    "media_ext": "jpg",
+    "media_data": "%87%60M%B4A%E1%EB%A0%13%E4%C4%5C2%C4%0B%DFV%B7%0B...", #对图片原始二进制数据，使用url encode编码
+    "class":"recv",
+    "sender_id":"@2372835507",
+    "receiver_id":"@4072574066",
+    "group":"PERL学习交流",
+    "group_id":"@@2617047292",
+    "sender":"灰灰",
+    "id":"10856",
+    "type":"group_message",
+    "format": "media",
     "post_type": "receive_message"
 }
 
@@ -226,10 +256,10 @@ Server: Mojolicious (Perl)
 |------------------------------|:-----------|:-------------------------------|
 |new_group                     |新加入群聊  | 对应群对象
 |new_friend                    |新增好友    | 对应好友对象
-|new_group_member              |新增群聊成员| 对应成员对象
+|new_group_member              |新增群聊成员| 对应成员对象，对应的群对象
 |lose_group                    |退出群聊    | 对应群对象
 |lose_friend                   |删除好友    | 对应好友对象
-|lose_group_member             |成员退出群聊| 对应成员对象
+|lose_group_member             |成员退出群聊| 对应成员对象，对应的群对象
 |group_property_change         |群聊属性变化| 群对象，属性，原始值，更新值
 |group_member_property_change  |成员属性变化| 成员对象，属性，原始值，更新值
 |friend_property_change        |好友属性变化| 好友对象，属性，原始值，更新值
@@ -448,6 +478,7 @@ Server: Mojolicious (Perl)
 ```
 
 ### 11. 移除群组成员
+
 |   API  |移除群组成员
 |--------|:------------------------------------------|
 |uri     |/openwx/kick_group_member|
@@ -462,3 +493,43 @@ Server: Mojolicious (Perl)
     "status":"success",
     "code":0  #成功状态码为0，失败为非0
 }
+
+```
+
+### 12. 修改好友备注名称
+
+|   API  |修改好友备注名称
+|--------|:------------------------------------------|
+|uri     |/openwx/set_friend_markname|
+|请求方法|GET\|POST|
+|请求参数|**id**: 好友的id<br>**account**: 好友的帐号<br>**displayname**: 好友当前显示名称<br>**markname**: 好友当前备注名称<br>**new_markname**:设置的新备注名称 (参数中包含中文需要做urlencode)|
+|数据格式|application/x-www-form-urlencoded|
+|调用示例|http://127.0.0.1:3000/openwx/set_friend_markname?id=xxxxxx&new_markname=xxxx|
+返回JSON结果:
+
+```
+{
+    "status":"success",
+    "code":0  #成功状态码为0，失败为非0
+}
+
+```
+
+### 13. 设置群组的显示名称
+
+|   API  |设置群组的显示名称
+|--------|:------------------------------------------|
+|uri     |/openwx/set_group_displayname|
+|请求方法|GET\|POST|
+|请求参数|**id**: 群组的id<br>**displayname**: 群组当前显示名称<br>**new_displayname**:设置的新显示名称 (参数中包含中文需要做urlencode)|
+|数据格式|application/x-www-form-urlencoded|
+|调用示例|http://127.0.0.1:3000/openwx/set_group_displayname?id=xxxxxx&new_displayname=xxxx|
+返回JSON结果:
+
+```
+{
+    "status":"success",
+    "code":0  #成功状态码为0，失败为非0
+}
+
+```

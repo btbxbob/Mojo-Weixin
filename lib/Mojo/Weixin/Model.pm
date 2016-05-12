@@ -8,6 +8,7 @@ use Mojo::Weixin::Model::Remote::_webwxbatchgetcontact;
 use Mojo::Weixin::Model::Remote::_webwxstatusnotify;
 use Mojo::Weixin::Model::Remote::_webwxcreatechatroom;
 use Mojo::Weixin::Model::Remote::_webwxupdatechatroom;
+use Mojo::Weixin::Model::Remote::_webwxoplog;
 use Mojo::Weixin::User;
 use Mojo::Weixin::Group;
 use Mojo::Weixin::Const;
@@ -33,13 +34,7 @@ sub model_init{
     }
     my($friends,$contact_groups) = @$contactinfo;
     if(ref $friends eq "ARRAY" and @$friends>0){
-        for(@$friends){
-            if($_->{id} eq $user->{id}){
-                $self->user->update($_);
-                next;
-            }
-            $self->add_friend(Mojo::Weixin::Friend->new($_));
-        } 
+        $self->friend([ map {Mojo::Weixin::Friend->new($_)} grep {$_->{id} ne $user->{id}} @$friends ]);
         $self->info("更新好友信息成功");
     }
 
@@ -59,11 +54,8 @@ sub model_init{
         if(defined $info){
             my(undef,$groups) = @$info;
             if(ref $groups eq "ARRAY" and @$groups >0){
-                for(@$groups){
-                    my $group = Mojo::Weixin::Group->new($_);
-                    $self->add_group($group);
-                    $self->info("更新群组[ @{[$group->displayname]} ]信息成功");
-                }
+                $self->group([ map { Mojo::Weixin::Group->new($_) } @$groups ]);
+                $self->info("更新群组[ @{[$_->displayname]} ]信息成功") for $self->groups;
             }
         }
         else{
@@ -207,6 +199,27 @@ sub friends{
 sub groups{
     my $self = shift;
     return @{$self->group};
+}
+
+sub set_friend_markname {
+    my $self = shift;
+    my $friend = shift;
+    my $markname = shift;
+    if(ref $friend ne "Mojo::Weixin::Friend"){
+        $self->die("无效的对象数据类型");
+        return;
+    }
+    my $displayname = $friend->displayname;
+    my $ret = $self->_webwxoplog($friend->id,$markname);
+    if($ret){
+        $self->info("设置好友 $displayname 备注[ $markname ]成功");
+        return 1;
+    }
+    else{
+        $self->info("设置好友 $displayname 备注[ $markname ]失败");
+        return 0;
+    }
+
 }
 
 sub create_group {

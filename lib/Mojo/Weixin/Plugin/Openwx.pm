@@ -8,16 +8,21 @@ sub call{
     my $client = shift;
     my $data   =  shift;
     my $post_api = $data->{post_api} if ref $data eq "HASH";
+    $data->{post_media_data} = 1 if not defined $data->{post_media_data};
 
     if(defined $post_api){
         $client->on(all_event => sub{
             my($client,$event,@args) =@_;
             if($event =~ /^new_group|lose_group|new_friend|lose_friend|new_group_member|lose_group_member$/){
-                my $object = $args[0];
                 my $post_json = {};
                 $post_json->{post_type} = "event";
                 $post_json->{event} = $event;
-                $post_json->{params} = [$object->to_json_hash(0)];
+                if($event =~ /^new_group_member|lose_group_member$/){
+                    $post_json->{params} = [$args[0]->to_json_hash(0),$args[1]->to_json_hash(0)];
+                }
+                else{
+                    $post_json->{params} = [$args[0]->to_json_hash(0)];
+                }
                 $client->http_post($post_api,json=>$post_json,sub{
                     my($data,$ua,$tx) = @_;
                     if($tx->success){
@@ -51,6 +56,7 @@ sub call{
             my($client,$msg) = @_;
             return if $msg->type !~ /^friend_message|group_message$/;
             my $post_json = $msg->to_json_hash;
+            delete $post_json->{media_data} if ($post_json->{format} eq "media" and ! $data->{post_media_data});
             $post_json->{post_type} = "receive_message";
             $client->http_post($post_api,json=>$post_json,sub{
                 my($data,$ua,$tx) = @_;
@@ -401,6 +407,36 @@ sub call{
         }
         else{$c->render(json=>{code=>200,status=>"member id empty"});}
         
+    };
+    any [qw(GET POST)] => '/openwx/set_group_displayname' => sub{
+        my $c = shift;
+        my($id,$displayname,$new_displayname)= map {defined $_?Encode::encode("utf8",$_):$_} ($c->param("id"),$c->param("displayname"),$c->param("new_displayname"));
+        my $object = $client->search_group(id=>$id,displayname=>$displayname);
+        if(defined $object){
+            if($object->set_displayname($new_displayname)){
+                $c->render(json=>{code=>0,status=>"success"});
+            }
+            else{
+                $c->render(json=>{code=>201,status=>"failure"});
+            }
+            
+        }
+        else{$c->render(json=>{code=>100,status=>"object not found"});}
+    };
+    any [qw(GET POST)] => '/openwx/set_friend_markname' => sub{
+        my $c = shift;
+        my($id,$account,$displayname,$markname,$new_markname)= map {defined $_?Encode::encode("utf8",$_):$_} ($c->param("id"),$c->param("account"),$c->param("displayname"),$c->param("markname"),$c->param("new_markname"));
+        my $object = $client->search_friend(id=>$id,account=>$account,displayname=>$displayname,markname=>$markname);
+        if(defined $object){
+            if($object->set_markname($new_markname)){
+                $c->render(json=>{code=>0,status=>"success"});
+            }
+            else{
+                $c->render(json=>{code=>201,status=>"failure"});
+            }
+        }
+        else{$c->render(json=>{code=>100,status=>"object not found"});}
+
     };
     any '/*whatever'  => sub{whatever=>'',$_[0]->render(text=>"api not found",status=>403)};
     package Mojo::Weixin::Plugin::Openwx;
