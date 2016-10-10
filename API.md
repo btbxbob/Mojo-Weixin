@@ -36,6 +36,7 @@
     {#第一个好友
         "account": "wxzhifu",
         "name": "微信支付",
+        "category":"公众号",
         "markname": "",
         "sex": "none",
         "display": "",
@@ -47,15 +48,16 @@
     },
     {#第二个好友
         "account": "",
-        "name": "财付通",
+        "name": "小灰",
+        "category":"好友",
         "markname": "",
         "sex": "none",
         "display": "",
         "city": "深圳",
-        "signature": "会支付 会生活",
+        "signature": "小灰灰的个性签名",
         "province": "广东",
         "id": "@00227d73fa6b8326f69bca419db7a05c",
-        "displayname": "财付通"
+        "displayname": "小灰"
     }
 ]
 ```
@@ -141,26 +143,39 @@
 |--------|:------------------------------------------|
 |uri     |/openwx/send_friend_message|
 |请求方法|GET\|POST|
-|请求参数|**id**: 好友的id<br>**account**: 好友的帐号<br>**displayname**: 好友显示名称<br>**markname**: 好友备注名称<br>**media_path**:媒体路径(可以是文件路径或url，需要做urlencode)|
+|请求参数|**id**: 好友的id<br>**account**: 好友的帐号<br>**displayname**: 好友显示名称<br>**markname**: 好友备注名称<br>**content**:发送的文本内容(中文需要做urlencode)<br>**media_id**:媒体id(发送媒体消息返回的媒体id，需要做urlencode)<br>**media_path**:媒体路径(可以是文件路径或url，需要做urlencode)|
 |数据格式|application/x-www-form-urlencoded|
-|调用示例|http://127.0.0.1:3000/openwx/send_friend_message?id=xxxx&content=hello<br>http://127.0.0.1:3000/openwx/send_friend_message?markname=xxx&content=%e4%bd%a0%e5%a5%bd<br>http://127.0.0.1:3000/openwx/send_friend_message?id=xxx&media_path=https%3a%2f%2fss0.bdstatic.com%2f5aV1bjqh_Q23odCf%2fstatic%2fsuperman%2fimg%2flogo%2fbd_logo1_31bdc765.png|
+|调用示例|http://127.0.0.1:3000/openwx/send_friend_message?id=xxxx&content=hello<br>http://127.0.0.1:3000/openwx/send_friend_message?markname=xxx&content=%e4%bd%a0%e5%a5%bd<br>http://127.0.0.1:3000/openwx/send_friend_message?id=xxx&media_path=https%3a%2f%2fss0.bdstatic.com%2flogo.png<br>http://127.0.0.1:3000/openwx/send_friend_message?id=xxx&media_id=%40crypt_1eb0ba44_cb3de736e6ccd5ae8%3a3|
 特殊处理：id=@all 表示群发消息给所有的好友
-返回JSON数组:
+
+####文本消息返回JSON数据格式:
 ```
 {"status":"发送成功","msg_id":23910327,"code":0} #code为 0 表示发送成功
 ```
+####媒体消息返回的JSON数据格式：
+```
+{"status":"发送成功","msg_id":23910327,"media_id":"@crypt_1eb0ba44_cb3de736e6ccd5ae8:3","code":0} #code为 0 表示发送成功
+```
+注意：相同媒体消息转发给多个好友或群组时，可以直接拿之前发送消息返回的media_id作为发送对象，这样可以避免重复上传文件，提高发送效率
+
 ### 5. 发送群组消息
 |   API  |发送群组消息
 |--------|:------------------------------------------|
 |uri     |/openwx/send_group_message|
 |请求方法|GET\|POST|
-|请求参数|**id**: 群组的id<br>**displayname**: 群组显示名称<br>**media_path**:媒体路径(可以是文件路径或url，需要做urlencode)|
+|请求参数|**id**: 群组的id<br>**displayname**: 群组显示名称<br>**content**:发送的文本内容(中文需要做urlencode)<br>**media_id**:媒体id(发送媒体消息返回的媒体id，需要做urlencode)<br>**media_path**:媒体路径(可以是文件路径或url，需要做urlencode)|
 |数据格式|application/x-www-form-urlencoded|
-|调用示例|http://127.0.0.1:3000/openwx/send_group_message?id=xxxx&content=hello<br>http://127.0.0.1:3000/openwx/send_group_message?displayname=xxx&content=%e4%bd%a0%e5%a5%bd<br>http://127.0.0.1:3000/openwx/send_group_message?id=xxx&media_path=https%3a%2f%2fss0.bdstatic.com%2f5aV1bjqh_Q23odCf%2fstatic%2fsuperman%2fimg%2flogo%2fbd_logo1_31bdc765.png<br>http://127.0.0.1:3000/openwx/send_group_message?displayname=xxx&media_path=https%3a%2f%2fss0.bdstatic.com%2f5aV1bjqh_Q23odCf%2fstatic%2fsuperman%2fimg%2flogo%2fbd_logo1_31bdc765.png|
-返回JSON数组:
+|调用示例|http://127.0.0.1:3000/openwx/send_group_message?id=xxxx&content=hello<br>http://127.0.0.1:3000/openwx/send_group_message?displayname=xxx&content=%e4%bd%a0%e5%a5%bd<br>http://127.0.0.1:3000/openwx/send_group_message?id=xxx&media_path=https%3a%2f%2fss0.bdstatic.com%2flogo.png<br>http://127.0.0.1:3000/openwx/send_group_message?displayname=xxx&media_path=https%3a%2f%2fss0.bdstatic.com%2flogo.png<br>http://127.0.0.1:3000/openwx/send_group_message?id=xxx&media_id=%40crypt_1eb0ba44_cb3de736e6ccd5ae8%3a3|
+
+####文本消息返回JSON数据格式:
 ```
 {"status":"发送成功","msg_id":23910327,"code":0} #code为 0 表示发送成功
 ```
+####媒体消息返回的JSON数据格式：
+```
+{"status":"发送成功","msg_id":23910327,"media_id":"@crypt_1eb0ba44_cb3de736e6ccd5ae8:3","code":0} #code为 0 表示发送成功
+```
+注意：相同媒体消息转发给多个好友或群组时，可以直接拿之前发送消息返回的media_id作为发送对象，这样可以避免重复上传文件，提高发送效率
 ### 6. 自定义接收消息上报地址
 |   API  |接收消息上报（支持好友消息、群消息）
 |--------|:------------------------------------------|
@@ -174,12 +189,14 @@ $client->load("Openwx",data=>{
     listen => [{host=>xxx,port=>xxx}],           #可选，发送消息api监听端口
     post_api=> 'http://127.0.0.1:4000/post_api', #可选，接收消息或事件的上报地址
     post_event => 1,                             #可选，是否上报事件，为了向后兼容性，默认值为0
-    post_media_data => 1,                        #可选，是否上报经过urlencode编码的图片原始数据，默认值为1
+    post_media_data => 1,                        #可选，是否上报经过base64编码的图片原始数据，默认值为1
 });
 ```
 #### 接收消息上报 
 
 当接收到消息时，会把消息通过JSON格式数据POST到该接口
+
+普通好友消息或群消息上报
 
 ```
 connect to 127.0.0.1 port 4000
@@ -205,7 +222,59 @@ Content-Type: application/json
 
 ```
 
-图片消息上报
+群提示消息上报
+
+```
+connect to 127.0.0.1 port 4000
+POST /post_api
+Accept: */*
+Content-Length: xxx
+Content-Type: application/json
+
+{   "receiver":"小灰",
+    "time":"1442542632",
+    "content":"你邀请灰太狼加入了群聊",
+    "class":"recv",
+    "receiver_id":"@4072574066",
+    "group":"PERL学习交流",
+    "group_id":"@@2617047292",
+    "id":"10856",
+    "type":"group_notice",
+    "format": "text",
+    "post_type": "receive_message"
+}
+
+```
+
+#### 发送消息上报（包括从手机或其他设备上发送的消息） 
+
+发送的消息会通过JSON格式数据POST到该接口
+
+```
+connect to 127.0.0.1 port 4000
+POST /post_api
+Accept: */*
+Content-Length: xxx
+Content-Type: application/json
+
+{   "receiver":"小灰",
+    "time":"1442542632",
+    "content":"测试一下",
+    "class":"send",
+    "sender_id":"@2372835507",
+    "receiver_id":"@4072574066",
+    "group":"PERL学习交流",
+    "group_id":"@@2617047292",
+    "sender":"灰灰",
+    "id":"10856",
+    "type":"group_message",
+    "format": "text",
+    "post_type": "send_message"
+}
+
+```
+
+#### 图片消息上报
 
 ```
 {   "receiver":"小灰",
@@ -218,7 +287,7 @@ Content-Type: application/json
     "media_size": "1234567",
     "media_mtime": "1462763788",
     "media_ext": "jpg",
-    "media_data": "%87%60M%B4A%E1%EB%A0%13%E4%C4%5C2%C4%0B%DFV%B7%0B...", #对图片原始二进制数据，使用url encode编码
+    "media_data": "pXA88GiUcCncmxUgt2JbJxRVu2\/1j0U2xJH\/\/2Q==\n", #对图片原始二进制数据，使用base64默认方式编码
     "class":"recv",
     "sender_id":"@2372835507",
     "receiver_id":"@4072574066",
@@ -232,6 +301,32 @@ Content-Type: application/json
 }
 
 ```
+
+#### 应用分享消息上报
+
+```
+{   "receiver":"小灰",
+    "time":"1442542632",
+    "content":"[应用分享]标题：饿了么给你发红包",
+    "app_name":"饿了么",
+    "app_id":"wx123456",
+    "app_title":"饿了么给你发红包",
+    "app_desc":"撩拨你的深夜味蕾，第2份半价！"
+    "app_url":"https:\/\/h.ele.me\/hongbao", 
+    "class":"recv",
+    "sender_id":"@2372835507",
+    "receiver_id":"@4072574066",
+    "group":"PERL学习交流",
+    "group_id":"@@2617047292",
+    "sender":"灰灰",
+    "id":"10856",
+    "type":"group_message",
+    "format": "app",
+    "post_type": "receive_message"
+}
+
+```
+
 一般情况下，post_api接口返回的响应内容可以是随意，会被忽略，上报完不做其他操作
 如果post_api接口返回的数据类型是 text/json 或者 application/json，并且json格式形式如下:
 
@@ -244,16 +339,29 @@ Content-Length: 27
 Server: Mojolicious (Perl)
 
 {"reply":"你好","code":0} #要回复消息，必须包含reply的属性，其他属性有无并不重要
+
 ```
 
 则表示希望通过post_api响应的内容来直接回复该消息，会直接对上报的该条消息进行回复，回复的内容为 "你好"
+
+如果想要对消息回复图片内容，可以使用 media 参数，举例:
+
+```
+
+{"media":"http://www.baidu.com/test.jpg","code":0}                          #使用url地址形式
+{"media":"/tmp/test.jpg","code":0}                                          #使用本地文件地址形式
+{"reply":"给你发个图片","media":"http://www.baidu.com/test.jpg","code":0}   #文本和图片同时发送
+
+```
 
 #### 事件上报
 
 当事件发生时，会把事件相关信息上报到指定的接口，当前支持上报的事件包括：
 
 |  事件名称                    |事件说明    |上报参数列表
-|------------------------------|:-----------|:-------------------------------|
+|------------------------------|:-----------|:-----------------------------------------|
+|login                         |客户端登录  | *1*：表示经过二维码扫描，好友等id可能会发生变化<br>*0*： 表示未经过二维码扫描，好友等id不会发生变化
+|input_qrcode                  |扫描二维码  | 二维码本地保存路径，二维码原始数据的base64编码
 |new_group                     |新加入群聊  | 对应群对象
 |new_friend                    |新增好友    | 对应好友对象
 |new_group_member              |新增群聊成员| 对应成员对象，对应的群对象
@@ -264,6 +372,8 @@ Server: Mojolicious (Perl)
 |group_member_property_change  |成员属性变化| 成员对象，属性，原始值，更新值
 |friend_property_change        |好友属性变化| 好友对象，属性，原始值，更新值
 |user_property_change          |帐号属性变化| 账户对象，属性，原始值，更新值
+
+新增好友事件举例
 
 ```
 connect to 127.0.0.1 port 4000
@@ -286,6 +396,29 @@ Content-Type: application/json
             "province":"北京",
             "displayname":"小冰",
             "id":"@75b9db5ae52c87361d1800eaaf307f4d"
+        }
+    ],
+
+}
+
+```
+
+扫描二维码事件举例
+
+```
+connect to 127.0.0.1 port 4000
+POST /post_api
+Accept: */*
+Content-Length: xxx
+Content-Type: application/json
+
+{
+    "post_type":"event",
+    "event":"input_qrcode",
+    "params":[
+        {
+            "\/tmp\/qrcode.jpg", #二维码本地路径
+            "\/9j\/4AAQSkZJRgABAQAAAQABAAD\...UUUUUUUUUUUV\/\/Z\n", #二维码原始数据经过base64默认方式编码
         }
     ],
 
@@ -532,4 +665,123 @@ Server: Mojolicious (Perl)
     "code":0  #成功状态码为0，失败为非0
 }
 
+```
+
+### 14. 向指定的群成员发送好友请求
+
+|   API  |向指定的群成员发送好友请求
+|--------|:------------------------------------------|
+|uri     |/openwx/make_friend|
+|请求方法|GET\|POST|
+|请求参数|**id**: 群成员的id<br>**verify**:好友请求的附加信息 (参数中包含中文需要做urlencode)|
+|数据格式|application/x-www-form-urlencoded|
+|调用示例|http://127.0.0.1:3000/openwx/make_friend?id=xxxxxx&verify=hello|
+返回JSON结果:
+
+```
+{
+    "status":"success",
+    "code":0  #成功状态码为0，失败为非0
+}
+
+```
+
+### 15. 获取用户或群组头像
+
+|   API  |获取用户或群组头像
+|--------|:------------------------------------------|
+|uri     |/openwx/get_avatar|
+|请求方法|GET\|POST|
+|请求参数|**id**: 用户或群组的id|
+|数据格式|image/jpg、image/png|
+|调用示例|http://127.0.0.1:3000/openwx/get_avatar?id=xxxxxx|
+
+返回图片原始数据:
+
+```
+GET /openwx/get_avatar?id=xxxxx HTTP/1.1
+User-Agent: curl/7.29.0
+Host: 127.0.0.1:3000
+Accept: */*
+
+HTTP/1.1 200 OK
+Content-Type: image/jpg
+Date: Tue, 09 Aug 2016 01:49:14 GMT
+Content-Length: 1104
+Server: Mojolicious (Perl)
+
+```
+
+### 16. 获取程序运行信息
+
+|   API  |获取进程运行信息
+|--------|:------------------------------------------|
+|uri     |/openwx/get_client_info|
+|请求方法|GET\|POST|
+|请求参数|无|
+|调用示例|http://127.0.0.1:3000/openwx/get_client_info|
+
+返回JSON结果:
+
+```
+{
+    "code":0,
+    "account":"default",
+    "log_encoding":null,
+    "log_level":"debug",
+    "log_path":null,
+    "os":"linux",
+    "pid":15497,
+    "runtime":3096,
+    "starttime":1475135588,
+    "status":"success",
+    "http_debug":"0",
+    "version":"1.2.0"
+ }
+ ```
+ 
+### 17. 终止程序运行
+
+|   API  |终止程序运行
+|--------|:------------------------------------------|
+|uri     |/openwx/stop_client|
+|请求方法|GET\|POST|
+|请求参数|无|
+|调用示例|http://127.0.0.1:3000/openwx/stop_client|
+
+返回JSON结果:
+
+```
+{
+    "code":0,
+    "account":"default",
+    "pid":15972,
+    "runtime":30,
+    "starttime":1475136637,
+    "status":"success, client(15972) will stop in 3 seconds"
+}
+```
+
+### 18. 上传媒体文件
+
+|   API  |上传媒体文件，获取media_id, 用于稍后发送
+|--------|:------------------------------------------|
+|uri     |/openwx/upload_media|
+|请求方法|GET\|POST|
+|请求参数|**media_path**: 媒体的路径，可以是本地路径或url地址|
+|数据格式|application/x-www-form-urlencoded|
+|调用示例|http://127.0.0.1:3000/openwx/upload_media?media_path=%2ftmp%2ftest.mp4|
+
+返回JSON结果:
+
+```
+{
+    "media_ext":"mp4",
+    "media_id":"@crypt_5e8967c8_e637847b7d0b00xxxxxxcb82:43",
+    "media_mime":"video\/mp4",
+    "media_mtime":1470650887,
+    "media_name":"\/tmp\/test.mp4",
+    "media_path":"\/tmp\/test.mp4",
+    "media_size":66947
+}
 ```

@@ -9,6 +9,8 @@ use Mojo::Weixin::Model::Remote::_webwxstatusnotify;
 use Mojo::Weixin::Model::Remote::_webwxcreatechatroom;
 use Mojo::Weixin::Model::Remote::_webwxupdatechatroom;
 use Mojo::Weixin::Model::Remote::_webwxoplog;
+use Mojo::Weixin::Model::Remote::_webwxverifyuser;
+use Mojo::Weixin::Model::Remote::_webwxgetheadimg;
 use Mojo::Weixin::User;
 use Mojo::Weixin::Group;
 use Mojo::Weixin::Const;
@@ -25,7 +27,7 @@ sub model_init{
     if(defined $user){
         $self->info("更新个人信息成功");
         $self->user(Mojo::Weixin::User->new($user));
-        $self->_webwxstatusnotify(3);
+        $self->_webwxstatusnotify($self->user->id,3);
     }
     my $contactinfo = $self->_webwxgetcontact();
     if(not defined $contactinfo){
@@ -60,8 +62,10 @@ sub model_init{
         }
         else{
             $self->error("更新群组信息失败");
+            return;
         }
     }
+    return 1;
 }
 sub update_user {
 
@@ -167,12 +171,12 @@ sub is_group{
 }
 sub code2sex{
     my $c = shift;
-    my %h = qw(
-        0   none
-        1   male
-        2   female
+    my %h = (
+        0 => "",
+        1 => "male",
+        2 => "female",
     );
-    return $h{$c} || "none";
+    return $h{$c} || "";
 }
 
 sub each_friend{
@@ -324,4 +328,52 @@ sub kick_group_member{
         return 0;
     }
 }
+
+sub make_friend{
+    my $self = shift;
+    my $member = shift;
+    my $content = shift || '';
+    $self->die("非群组成员对象") if not $member->is_group_member;
+    my $ret = $self->_webwxverifyuser($member->id,$content,2,"");
+    if($ret){
+        $self->info("好友请求[ ". $member->displayname . " ]发送成功: "  . ($content?$content:"(验证内容为空)"));
+        return 1;
+    }
+    else{
+        $self->info("好友请求[ ". $member->displayname . " ]发送失败: " . ($content?$content:"(验证内容为空)"));
+        return 0;
+    }
+}
+
+sub accept_friend_request{
+    my $self = shift;
+    my $id = shift;
+    my $displayname = shift;
+    my $ticket = shift;
+    my $ret = $self->_webwxverifyuser($id,"",3,$ticket);
+    if($ret){
+        $self->info("[ " . $displayname .  " ]的好友请求已被接受");
+        return 1;
+    }
+    else{
+        $self->info("[ " . $displayname . " ]的好友请求接受失败");
+        return 0;
+    }
+}
+
+sub get_avatar {
+    my $self = shift;
+    my $object =  shift;
+    my $callback = shift;
+    if(ref($object) !~ /Mojo::Weixin::User|Mojo::Weixin::Friend|Mojo::Weixin::Group|Mojo::Weixin::Groupp::Member/){
+        $self->die("不支持的数据类型");
+        return;
+    }
+    elsif(ref $callback ne "CODE"){
+        $self->warn("未设置回调函数");
+        return;
+    }
+    $self->_webwxgetheadimg($object,$callback);
+}
+
 1;
