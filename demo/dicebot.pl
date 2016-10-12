@@ -11,5 +11,6 @@ my $client = Mojo::Weixin->new(log_level=>"info",ua_debug=>0);
 $client->login();
 $client->load("ShowMsg");
 $client->load("DiceBot");
+$client->load("AutoVerify");
 #$client->load("Openwx",data=>{listen=>[{host=>$host,port=>$port}], post_api=>$post_api});
 $client->run();
