@@ -1,4 +1,4 @@
-﻿require("curl")
+curl=require("cURL")
 --table.insert(main_help_table,"获取链接功能，目前有乱码问题。")
 function getlink(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	if string.match(msg,"http:%/%/")==nil then return end
@@ -15,6 +15,7 @@ function getlink(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	if string.match(url,"youtube") then return end
 	if string.match(url,"220%.170%.79%.48") then return end
 	if string.match(url,"bbs%.saraba1st%.com") then return end
+	print("getlink get here.")
 	local connection=curl.easy_init()
 	connection:setopt(curl.OPT_URL,url)
 	connection:setopt(curl.OPT_TIMEOUT,3)

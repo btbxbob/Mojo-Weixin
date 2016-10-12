@@ -10,6 +10,7 @@ function lua_load(path)
 	print("lua, path=", path)
 	path=path:match(".*/")
 	package.path=path.."luascript/?.lua"
+    package.cpath=path.."luascript/?.dll"
 	a,b=loadfile(path.."/main.lua")
 	print(b,"test from lua", main)
 	a()

@@ -1,4 +1,4 @@
---package.cpath=".\\luascript\\?.dll"
+--package.cpath="./luascript/?.dll"
 print(package.path)
 
 main_help_table={
@@ -10,7 +10,7 @@ main_help_table={
 require"dnddice"
 --require"woddice"
 require"roll"
---require"getlink"
+require"getlink"
 --require"dictionary"
 --require"wiki"
 require"knight"
@@ -39,7 +39,7 @@ function main(sayfunc,msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	say_qun=sayfunc
 	--escape(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	--bet(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
-	--getlink(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
+	getlink(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	roll(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	dnddice(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
 	calcmd5(msg,msg_time,buddy_name,buddy_num,qun_name,qun_num)
