@@ -155,12 +155,14 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
 
     log_level       #默认级别为info，可以设置debug|info|warn|error|fatal
     log_path        #默认客户端输出内容打印到STDERR 设置该参数可以将客户端输出重定向到文件
+    log_unicode     #支持打印unicode字符，默认值为0 不开启
     log_encoding    #输出日志的编码，默认自动检测，如果出现乱码可以尝试手动设置一下输出编码
                     #编码必须是 Encode 模块支持的格式，比如utf8 gbk等
 
     tmpdir          #程序使用的临时目录，主要用于保存一些验证码、二维码等数据，默认为系统临时目录
     cookie_path     #登录cookie的保存文件，默认为 tmpdir/mojo_weixin_cookie_default.dat（多账号运行时设置不同account）
-    pic_dir         #图片接收默认地址，默认为 tmpdir 参数所设置的目录
+    media_dir       #图片接收默认地址，默认为 tmpdir 参数所设置的目录
+    download_media  #是否自动下载媒体文件，默认值为1
 
     qrcode_path     #二维码保存路径，默认是 tmpdir 目录下固定文件名
     emoji_to_text   #默认为1，是否把emoji表情字符转为 "[微笑]" 形式的文本
@@ -323,8 +325,14 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
     my ($http_body,$ua,$tx) = $client->http_get($url,$header);
 
     #可以在http header设置一些请求相关的选项，比如：
-    #json=>1 表示将响应的json数据进行json decode得到perl的hash引用
-    #retry_times=>3 表示请求失败自动重试次数，默认使用$client->ua_retry_times的值
+    #json=>1                表示将响应的json数据进行json decode得到perl的hash引用
+    #ua_retry_times=>3      表示请求失败自动重试次数，默认使用$client->ua_retry_times的值
+    #ua_debug               是否打印http请求调试信息
+    #ua_debug_res_body      是否打印http响应的body
+    #ua_debug_req_body      是否打印http请求的body
+    #ua_connect_timeout     阻塞http请求建立连接超时时间
+    #ua_request_timeout     阻塞http请求等待响应超时时间
+    #ua_inactivity_timeout  阻塞http请求idle 超时时间
     my $json_decode_hash = $client->http_get($url,{json=>1,retry_times=>3,Host=>"www.qq.com"});
 
     #http post请求
@@ -636,6 +644,22 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
         }
     });
 
+=head2 state_change 客户端状态改变
+
+    init                    #客户端初始状态
+    loading                 #加载插件
+    scaning                 #等待扫码
+    confirming              #等待手机点击[登录]
+    updating                #更新好友、群组信息
+    running                 #客户端运行中，可以正常接收、发送消息
+    stop                    #客户端停止运行
+
+    状态迁移过程：init => loading => scaning => confirming => updating => running => stop 
+
+    $cient->on(state_change=>sub{
+        my($client,$old_state,$new_state) = @_;
+    });
+
 =head2 input_qrcode 需要扫描二维码
 
     $client->on(input_qrcode=>sub{
@@ -863,6 +887,12 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
 
     $client->load("ShowQRcode");
 
+=head2 Mojo::Weixin::Plugin::ShowQRCodeInTerm
+
+Linux系统下直接打印二维码到终端，作者 hyvinlam L<https://github.com/hyvinlam>
+
+    $client->load("ShowQRCodeInTerm");
+
 =head2 Mojo::Weixin::Plugin::PostQRcode
 
 登录过程如果需要手机扫描二维码，会将二维码以邮件附件的形式发送到指定邮箱，再通过手机微信扫描二维码
@@ -1025,6 +1055,8 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
         auth   => sub {my($param,$controller) = @_},    #可选，认证回调函数，用于进行请求鉴权
         post_api => 'http://xxxx',                      #可选，你自定义的接收消息上报接口
         post_event => 1,                                #可选，是否上报事件，为了向后兼容性，默认值为0
+        post_media_data => 1,                        #可选，是否上报经过base64编码的图片原始数据，默认值为1
+        post_event_list => ['login','stop','state_change','input_qrcode'], #可选，上报事件列表
     });
 
     #若data中设置了auth函数引用，则表示api接口开启认证

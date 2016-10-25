@@ -1,4 +1,4 @@
-Mojo-Weixin v1.2.1 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.svg?branch=master)](https://travis-ci.org/sjdy521/Mojo-Weixin) [![Join the chat at https://gitter.im/sjdy521/Mojo-Weixin](https://badges.gitter.im/sjdy521/Mojo-Weixin.svg)](https://gitter.im/sjdy521/Mojo-Weixin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.svg?branch=master)](https://travis-ci.org/sjdy521/Mojo-Weixin) [![Join the chat at https://gitter.im/sjdy521/Mojo-Weixin](https://badges.gitter.im/sjdy521/Mojo-Weixin.svg)](https://gitter.im/sjdy521/Mojo-Weixin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 ========================
 
 使用Perl语言编写的微信客户端框架，基于Mojolicious，要求Perl版本5.10+，可通过插件提供基于HTTP协议的api接口供其他语言或系统调用
@@ -37,6 +37,7 @@ Mojo-Weixin v1.2.1 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 |[UploadQRcode](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::UploadQRcode)          |0        |已发布      |sjdy521      |二维码上传腾讯云存储获得公网访问url
 |[XiaoiceReply](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::XiaoiceReply)        |1        |已发布      |sjdy521      |利用微软小冰实现智能聊天回复
 |[ShowQRcode](https://metacpan.org/pod/distribution/Mojo-Weixin/doc/Weixin.pod#Mojo::Weixin::Plugin::ShowQRcode)          |0        |已发布      |sjdy521  |调用系统图片查看程序来示二维码（目前仅支持win）
+|[ShowQRCodeInTerm](https://metacpan.org/pod/distribution/Mojo-Weixin/doc/Weixin.pod#Mojo::Weixin::Plugin::ShowQRCodeInTerm)          |0        |已发布      |hyvinlam  |Linux系统下直接打印二维码到终端
 |[SmartReply](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::SmartReply)          |0        |已发布      |sjdy521      |智能聊天回复
 
 
@@ -126,6 +127,10 @@ Mojo-Weixin v1.2.1 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
     方法b： 直接在线安装cpanm
 
         $ curl -kL http://cpanmin.us | perl - App::cpanminus
+
+        官方服务器在国外，如果无法访问，可以选择下面的命令：
+        
+        $ curl http://share-10066126.cos.myqcloud.com/cpanm.pl|perl - App::cpanminus
 
 2. *使用cpanm在线安装 Mojo::Weixin 模块*（如果系统已经安装了该模块，执行此步骤会对模块进行升级）
 
@@ -251,9 +256,11 @@ Mojo-Weixin v1.2.1 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 
 ###捐赠奖励
 
-可以通过扫描支付宝付款二维码进行捐助，感谢您的支持和鼓励
+可以通过扫描支付宝付款二维码进行捐赠，感谢您的支持和鼓励
 
 ![donate](screenshot/donate.jpg)
+
+特别致谢 [那些曾经捐赠的小伙伴们](https://github.com/sjdy521/Donor-Thanks)
 
 ###COPYRIGHT 和 LICENCE
 

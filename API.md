@@ -1,3 +1,26 @@
+### 本文档包含的API是针对单帐号的，如果需要多账号统一管理API，请移步到[Controller-API](Controller-API.md)
+
+### 首先要启动一个API Server：
+
+可以直接把如下代码保存成一个源码文件(必须使用UTF8编码)，使用 perl 解释器来运行
+
+    #!/usr/bin/env perl
+    use Mojo::Weixin;
+    my ($host,$port,$post_api);
+    
+    $host = "0.0.0.0"; #发送消息接口监听地址，修改为自己希望监听的地址
+    $port = 3000;      #发送消息接口监听端口，修改为自己希望监听的端口
+    #$post_api = 'http://xxxx';  #接收到的消息上报接口，如果不需要接收消息上报，可以删除或注释此行
+    
+    my $client = Mojo::Weixin->new(log_level=>"info",http_debug=>0);
+    $client->load("ShowMsg");
+    $client->load("Openwx",data=>{listen=>[{host=>$host,port=>$port}], post_api=>$post_api});
+    $client->run();
+
+上述代码保存成 xxxx.pl 文件，然后使用 perl 来运行，就会完成 微信 登录并在本机产生一个监听指定地址端口的 http server
+
+    $ perl xxxx.pl
+
 ### 1. 获取用户数据
 |   API  |获取用户数据
 |--------|:------------------------------------------|
@@ -19,6 +42,7 @@
         "signature": "帮助解决微信支付中遇到的困难，收集关于微信支付的建议反馈。",
         "province": "广东",
         "id": "@efc5f86c30df4b9c80e98ac428e0e257",
+        "uid": 123,
         "displayname": "xxx"
     },
 ```
@@ -44,6 +68,7 @@
         "signature": "帮助解决微信支付中遇到的困难，收集关于微信支付的建议反馈。",
         "province": "广东",
         "id": "@efc5f86c30df4b9c80e98ac428e0e257",
+        "uid": 123456,
         "displayname": "微信支付"
     },
     {#第二个好友
@@ -57,6 +82,7 @@
         "signature": "小灰灰的个性签名",
         "province": "广东",
         "id": "@00227d73fa6b8326f69bca419db7a05c",
+        "uid": 123456,
         "displayname": "小灰"
     }
 ]
@@ -75,6 +101,7 @@
     {#第一个群
         "name": "",
         "id": "@@dadadadada",
+        "uid": 123456,
         "displayname": "xxxx"
         "member": [#群成员数组
             {#第一个群成员
@@ -87,6 +114,7 @@
                 "signature": "",
                 "province": "",
                 "id": "@adadada",
+                "uid": 123456,
                 "displayname": "xxx"
             },
             {#第二个群成员
@@ -99,6 +127,7 @@
                 "signature": "",
                 "province": "",
                 "id": "@dadada",
+                "uid": 123456,
                 "displayname": "xxx"
             },
         ],
@@ -107,6 +136,7 @@
     {#第二个群组
         "name": "xxxx",
         "id": "@@dadadada",
+        "uid": 123456,
         "displayname": "xxx"
         "member": [
             {
@@ -119,6 +149,7 @@
                 "signature": "",
                 "province": "",
                 "id": "@dadadada",
+                "uid": 123456,
                 "displayname": "xxx"
             },
             {
@@ -187,9 +218,10 @@
 ```
 $client->load("Openwx",data=>{
     listen => [{host=>xxx,port=>xxx}],           #可选，发送消息api监听端口
-    post_api=> 'http://127.0.0.1:4000/post_api', #可选，接收消息或事件的上报地址
+    post_api=> 'http://127.0.0.1:3000/post_api', #可选，接收消息或事件的上报地址
     post_event => 1,                             #可选，是否上报事件，为了向后兼容性，默认值为0
     post_media_data => 1,                        #可选，是否上报经过base64编码的图片原始数据，默认值为1
+    post_event_list => ['login','stop','state_change','input_qrcode'], #可选，上报事件列表
 });
 ```
 #### 接收消息上报 
@@ -199,7 +231,7 @@ $client->load("Openwx",data=>{
 普通好友消息或群消息上报
 
 ```
-connect to 127.0.0.1 port 4000
+connect to 127.0.0.1 port 3000
 POST /post_api
 Accept: */*
 Content-Length: xxx
@@ -210,11 +242,18 @@ Content-Type: application/json
     "content":"测试一下",
     "class":"recv",
     "sender_id":"@2372835507",
+    "sender_uid": 123456,
     "receiver_id":"@4072574066",
+    "receiver_name": "小灰",
+    "receiver_uid": 123456,
     "group":"PERL学习交流",
     "group_id":"@@2617047292",
+    "group_uid": 123456,
+    "group_name": "PERL学习交流",
     "sender":"灰灰",
+    "sender_name": "灰灰",
     "id":"10856",
+    "uid": 123456,
     "type":"group_message",
     "format": "text",
     "post_type": "receive_message"
@@ -225,7 +264,7 @@ Content-Type: application/json
 群提示消息上报
 
 ```
-connect to 127.0.0.1 port 4000
+connect to 127.0.0.1 port 3000
 POST /post_api
 Accept: */*
 Content-Length: xxx
@@ -236,7 +275,10 @@ Content-Type: application/json
     "content":"你邀请灰太狼加入了群聊",
     "class":"recv",
     "receiver_id":"@4072574066",
+    "receiver_name":"小灰",
+    "receiver_uid":123456,
     "group":"PERL学习交流",
+    "group_name":"PERL学习交流",
     "group_id":"@@2617047292",
     "id":"10856",
     "type":"group_notice",
@@ -251,7 +293,7 @@ Content-Type: application/json
 发送的消息会通过JSON格式数据POST到该接口
 
 ```
-connect to 127.0.0.1 port 4000
+connect to 127.0.0.1 port 3000
 POST /post_api
 Accept: */*
 Content-Length: xxx
@@ -263,9 +305,15 @@ Content-Type: application/json
     "class":"send",
     "sender_id":"@2372835507",
     "receiver_id":"@4072574066",
+    "receiver_uid":123456,
+    "receiver_name":"小灰",
     "group":"PERL学习交流",
     "group_id":"@@2617047292",
+    "group_name":"PERL学习交流",
+    "group_uid":123456,
     "sender":"灰灰",
+    "sender_uid":123456,
+    "sender_name":"灰灰",
     "id":"10856",
     "type":"group_message",
     "format": "text",
@@ -291,9 +339,15 @@ Content-Type: application/json
     "class":"recv",
     "sender_id":"@2372835507",
     "receiver_id":"@4072574066",
+    "receiver_uid":"",
+    "receiver_name":"",
     "group":"PERL学习交流",
     "group_id":"@@2617047292",
+    "group_name":"",
+    "group_uid":"",
     "sender":"灰灰",
+    "sender_name":"",
+    "sender_uid":"",
     "id":"10856",
     "type":"group_message",
     "format": "media",
@@ -306,6 +360,8 @@ Content-Type: application/json
 
 ```
 {   "receiver":"小灰",
+    "receiver_uid":"",
+    "receiver_name":"",
     "time":"1442542632",
     "content":"[应用分享]标题：饿了么给你发红包",
     "app_name":"饿了么",
@@ -318,7 +374,11 @@ Content-Type: application/json
     "receiver_id":"@4072574066",
     "group":"PERL学习交流",
     "group_id":"@@2617047292",
+    "group_uid":"",
+    "group_name":"",
     "sender":"灰灰",
+    "sender_uid":"",
+    "sender_name":"",
     "id":"10856",
     "type":"group_message",
     "format": "app",
@@ -361,6 +421,8 @@ Server: Mojolicious (Perl)
 |  事件名称                    |事件说明    |上报参数列表
 |------------------------------|:-----------|:-----------------------------------------|
 |login                         |客户端登录  | *1*：表示经过二维码扫描，好友等id可能会发生变化<br>*0*： 表示未经过二维码扫描，好友等id不会发生变化
+|stop                          |客户端停止    | 客户端停止运行，程序退出
+|state_change                  |客户端状态变化|旧的状态，新的状态 （参见[客户端状态说明](https://github.com/sjdy521/Mojo-Weixin/blob/master/Controller-API.md#客户端运行状态介绍)）
 |input_qrcode                  |扫描二维码  | 二维码本地保存路径，二维码原始数据的base64编码
 |new_group                     |新加入群聊  | 对应群对象
 |new_friend                    |新增好友    | 对应好友对象
@@ -373,10 +435,16 @@ Server: Mojolicious (Perl)
 |friend_property_change        |好友属性变化| 好友对象，属性，原始值，更新值
 |user_property_change          |帐号属性变化| 账户对象，属性，原始值，更新值
 
+可以在Openwx插件中，通过 `post_event_list` 参数来指定上报的事件
+
+默认 `post_event_list => ['login','stop','state_change','input_qrcode']`
+
+需要注意：属性变化类的事件可能触发的会比较频繁，导致产生大量的上报请求，默认不开启
+
 新增好友事件举例
 
 ```
-connect to 127.0.0.1 port 4000
+connect to 127.0.0.1 port 3000
 POST /post_api
 Accept: */*
 Content-Length: xxx
@@ -406,7 +474,7 @@ Content-Type: application/json
 扫描二维码事件举例
 
 ```
-connect to 127.0.0.1 port 4000
+connect to 127.0.0.1 port 3000
 POST /post_api
 Accept: */*
 Content-Length: xxx

@@ -22,17 +22,22 @@ sub gen_message_queue{
         return if $self->is_stop;
         if($msg->class eq "recv"){
             if($msg->format eq "media"){
-                $self->_get_media($msg,sub{
-                    my ($path,$data,$msg) = @_;
-                    if($msg->media_size == 0){
-                        $msg->content("[表情](获取数据为空，可能需要手机查看)");
-                    }
-                    else{
-                        $msg->content( $msg->content. "(". $msg->media_path . ")");
-                    }
-                    $self->emit(receive_media=>$path,$data,$msg);
+                if($self->download_media){
+                    $self->_get_media($msg,sub{
+                        my ($path,$data,$msg) = @_;
+                        if($msg->media_size == 0 and $msg->media_type eq 'emoticon'){
+                            $msg->content("[表情](获取数据为空，可能需要手机查看)");
+                        }
+                        else{
+                            $msg->content( $msg->content. "(". $msg->media_path . ")");
+                        }
+                        $self->emit(receive_media=>$path,$data,$msg);
+                        $self->emit(receive_message=>$msg);
+                    });
+                }
+                else{
                     $self->emit(receive_message=>$msg);
-                });
+                }
             }
             else{ $self->emit(receive_message=>$msg);}
         }
@@ -40,25 +45,27 @@ sub gen_message_queue{
             if($msg->source ne "local"){
                 my $status = Mojo::Weixin::Message::SendStatus->new(code=>0,msg=>"发送成功",info=>"来自其他设备");
                 if($msg->format eq "media"){
-                    $self->_get_media($msg,sub{
-                        my ($path,$data,$msg) = @_;
-                        if($msg->media_size == 0){
-                            $msg->content("[表情](获取数据为空，可能需要手机查看)");
-                        }
-                        else{
-                            $msg->content( $msg->content. "(". $msg->media_path . ")");
-                        }
-                        $self->emit(send_media=>$path,$data,$msg);
-                        if(ref $msg->cb eq 'CODE'){
-                            $msg->cb->($self,$msg,$status);
-                        }
+                    if($self->download_media){
+                        $self->_get_media($msg,sub{
+                            my ($path,$data,$msg) = @_;
+                            if($msg->media_size == 0 and $msg->media_type eq 'emoticon'){
+                                $msg->content("[表情](获取数据为空，可能需要手机查看)");
+                            }
+                            else{
+                                $msg->content( $msg->content. "(". $msg->media_path . ")");
+                            }
+                            $msg->cb->($self,$msg,$status) if ref $msg->cb eq 'CODE';
+                            $self->emit(send_media=>$path,$data,$msg);
+                            $self->emit(send_message=>$msg,$status);
+                        });
+                    }
+                    else{
+                        $msg->cb->($self,$msg,$status) if ref $msg->cb eq 'CODE';
                         $self->emit(send_message=>$msg,$status);
-                    });
+                    }
                 }
                 else{ 
-                    if(ref $msg->cb eq 'CODE'){
-                        $msg->cb->($self,$msg,$status);
-                    }
+                    $msg->cb->($self,$msg,$status) if ref $msg->cb eq 'CODE';
                     $self->emit(send_message=>$msg,$status);
                 }
                 return;
@@ -122,7 +129,7 @@ sub _parse_synccheck_data{
             $self->relogin($retcode);
             return;
         }
-        elsif($self->_synccheck_error_count <= 3){
+        elsif($self->_synccheck_error_count <= 10){
             my $c = $self->_synccheck_error_count; 
             $self->_synccheck_error_count(++$c);
         }
@@ -333,10 +340,7 @@ sub _parse_sync_data {
                     $msg->{app_url} = $dom->at('msg > appmsg > url')->content;
                     $msg->{app_name} = $dom->at('msg > appinfo > appname')->content;
                     for( ($msg->{app_title},$msg->{app_desc},$msg->{app_url},$msg->{app_name}) ){
-                        if($_=~/^<!\[CDATA\[.*\]\]>$/){
-                            s/^<!\[CDATA\[//g;
-                            s/\]\]>//g;
-                        }
+                        s/!\[CDATA\[(.*?)\]\]/$1/g;
                     }
                     $msg->{app_url} = Mojo::Util::html_unescape($msg->{app_url});
                     $msg->{content} = "[应用分享]标题：@{[$msg->{app_title} || '未知']}\n[应用分享]描述：@{[$msg->{app_desc} || '未知']}\n[应用分享]应用：@{[$msg->{app_name} || '未知']}\n[应用分享]链接：@{[$msg->{app_url} || '未知']}";
