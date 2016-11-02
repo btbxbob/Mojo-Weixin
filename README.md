@@ -5,7 +5,7 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 
 ###郑重声明
 
-本项目完全遵循网页微信官方提供的原始聊天功能，不包含任何破解、盗号等行为，本项目完全开源，目的是为了促进技术交流学习，禁止任何商业盈利目的以及一切非法用途传播，否则后果自负
+本项目完全遵循微信官方提供的原始功能，不包含任何破坏、盗号等行为，本项目完全开源，目的是为了促进技术交流学习，禁止任何对国家、企业、个人等构成危害的非法用途，否则后果自负
 
 ###特色功能
 
@@ -64,7 +64,7 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 [16/01/19 23:15:00] [群消息] 小灰|Perl语言交流 : Mojo::Weixin不错哦
 [16/01/19 23:15:58] [群消息] 我->Perl语言交流 : 多谢多谢
 ```
-###通过irc客户端在linux终端上使用微信
+####通过irc客户端在linux终端上使用微信
 
 ```
     +-------------------+                      +----------------+  
@@ -87,6 +87,8 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 ```
 
 ![IRCShell](screenshot/IRCShell.jpg)
+
+####更多应用效果 请参见[Mojo-Weixin作品展](Collection.md)
 
 ###安装方法
 

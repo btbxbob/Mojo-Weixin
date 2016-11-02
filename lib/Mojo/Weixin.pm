@@ -33,6 +33,7 @@ has fix_media_loop      => 1;
 has synccheck_interval  => 1;
 has emoji_to_text       => 1;
 has stop_with_mobile    => 0;
+has http_max_message_size  => undef; #16777216;
 
 has user    => sub {+{}};
 has friend  => sub {[]};
@@ -81,6 +82,7 @@ has qrcode_count            => 0;
 has qrcode_count_max        => 10;
 has ua                      => sub {
     #local $ENV{MOJO_USERAGENT_DEBUG} = $_[0]->ua_debug;
+    local $ENV{MOJO_MAX_MESSAGE_SIZE} = $_[0]->http_max_message_size if defined $_[0]->http_max_message_size;
     require Mojo::UserAgent;
     require Mojo::UserAgent::Proxy;
     require Storable if $_[0]->keep_cookie;
@@ -197,7 +199,8 @@ sub new {
     $self->save_state();
     $SIG{CHLD} = 'IGNORE';
     $SIG{INT} = $SIG{KILL} = $SIG{TERM} = $SIG{HUP} = sub{
-        $self->info("正在停止客户端...");
+        return if $^O ne 'MSWin32' and $_[0] eq 'INT' and !-t;
+        $self->info("捕获到停止信号[$_[0]]，准备停止...");
         $self->clean_qrcode();
         $self->clean_pid();
         $self->stop();

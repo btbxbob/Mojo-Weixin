@@ -4,6 +4,7 @@ use Mojo::Weixin::Group::Member;
 
 has 'id';
 has 'uid';
+has 'owner_uid';
 has name => '';
 has member => sub{[]};
 has _avatar => '';
@@ -152,6 +153,10 @@ sub invite_friend{
 sub kick_group_member{
     my $self = shift;
     $self->client->kick_group_member($self,@_);
+}
+sub sticky_group{
+    my $self = shift;
+    $self->client->sticky_group($self,@_);
 }
 
 1;
