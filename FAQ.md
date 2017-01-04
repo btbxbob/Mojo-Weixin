@@ -14,21 +14,6 @@
 
 在客户端初始化时提供了一个account的参数用于为每个登陆的微信客户端设置单独的标识，这个参数并不是真正的微信账号，可以自由定义
 
-a. 单进程多账号模式
-
-    use Mojo::Weixin;
-    my $client1 = Mojo::Weixin->new(account=>"abc"); 
-    my $client2 = Mojo::Weixin->new(account=>"def");
-    $client1->load("ShowMsg");
-    $client2->load("ShowMsg");
-    $client1->ready();
-    $client2->ready();
-    Mojo::Weixin->multi_run();
-    
-把上述代码保存成xxx.pl，直接使用perl xxx.pl执行即可
-
-b. 多进程多账号模式
-
 每个账号的代码保存到不同的pl文件中,并设置好account参数
     
 ##### acb.pl文件
@@ -46,6 +31,13 @@ b. 多进程多账号模式
     $client->run();
     
 单独运行abc.pl和def.pl即可
+
+或者不想搞很多个pl文件，可以只使用一份代码，然后运行时通过环境变量`MOJO_WEIXIN_ACCOUNT`来传递account
+
+    use Mojo::Weixin;
+    my $client = Mojo::Weixin->new(); #这里不设置account参数，而是从环境变量获取
+    $client->load("ShowMsg");
+    $client->run();
 
 #### 3. *如何使用github上最新的代码进行测试*
 
@@ -73,7 +65,7 @@ use lib 'c:/Mojo-Weixin-master/lib'; #指定加载模块时优先加载的路径
 use Mojo::Weixin;
 my ($host,$port,$post_api);
 
-$host = "0.0.0.0"; #发送消息接口监听地址，修改为自己希望监听的地址
+$host = "0.0.0.0"; #发送消息接口监听地址，没有特殊需要请不要修改
 $port = 3000;      #发送消息接口监听端口，修改为自己希望监听的端口
 #$post_api = 'http://xxxx';  #接收到的消息上报接口，如果不需要接收消息上报，可以删除或注释此行
 

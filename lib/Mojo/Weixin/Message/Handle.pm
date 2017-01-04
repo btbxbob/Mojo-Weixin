@@ -2,11 +2,9 @@ package Mojo::Weixin;
 use strict;
 use Mojo::Weixin::Const qw(%KEY_MAP_USER %KEY_MAP_GROUP %KEY_MAP_GROUP_MEMBER %KEY_MAP_FRIEND %KEY_MAP_MEDIA_CODE);
 use List::Util qw(first);
-use Mojo::Util qw(encode);
 use Mojo::Weixin::Message;
-use Mojo::Weixin::Message::SendStatus;
 use Mojo::Weixin::Const;
-use Mojo::Weixin::Message::SendStatus;
+use Mojo::Weixin::Message;
 use Mojo::Weixin::Message::Queue;
 use Mojo::Weixin::Message::Remote::_upload_media;
 use Mojo::Weixin::Message::Remote::_get_media;
@@ -43,7 +41,7 @@ sub gen_message_queue{
         }
         elsif($msg->class eq "send"){
             if($msg->source ne "local"){
-                my $status = Mojo::Weixin::Message::SendStatus->new(code=>0,msg=>"发送成功",info=>"来自其他设备");
+                $msg->send_status(code=>0,msg=>"发送成功",info=>"来自其他设备");
                 if($msg->format eq "media"){
                     if($self->download_media){
                         $self->_get_media($msg,sub{
@@ -54,36 +52,34 @@ sub gen_message_queue{
                             else{
                                 $msg->content( $msg->content. "(". $msg->media_path . ")");
                             }
-                            $msg->cb->($self,$msg,$status) if ref $msg->cb eq 'CODE';
+                            $msg->cb->($self,$msg) if ref $msg->cb eq 'CODE';
                             $self->emit(send_media=>$path,$data,$msg);
-                            $self->emit(send_message=>$msg,$status);
+                            $self->emit(send_message=>$msg);
                         });
                     }
                     else{
-                        $msg->cb->($self,$msg,$status) if ref $msg->cb eq 'CODE';
-                        $self->emit(send_message=>$msg,$status);
+                        $msg->cb->($self,$msg) if ref $msg->cb eq 'CODE';
+                        $self->emit(send_message=>$msg);
                     }
                 }
                 else{ 
-                    $msg->cb->($self,$msg,$status) if ref $msg->cb eq 'CODE';
-                    $self->emit(send_message=>$msg,$status);
+                    $msg->cb->($self,$msg) if ref $msg->cb eq 'CODE';
+                    $self->emit(send_message=>$msg);
                 }
                 return;
             }
             #消息的ttl值减少到0则丢弃消息
             if($msg->ttl <= 0){
                 $self->debug("消息[ " . $msg->id.  " ]已被消息队列丢弃，当前TTL: ". $msg->ttl);
-                my $status = Mojo::Weixin::Message::SendStatus->new(code=>-5,msg=>"发送失败",info=>"TTL失效");
+                $msg->send_status(code=>-5,msg=>"发送失败",info=>"TTL失效");
                 if(ref $msg->cb eq 'CODE'){
                     $msg->cb->(
                         $self,
                         $msg,
-                        $status,
                     );
                 }
                 $self->emit(send_message=>
                     $msg,
-                    $status,
                 );
                 return;
             }
@@ -167,20 +163,22 @@ sub _parse_sync_data {
             if($self->is_group($e->{UserName})){#群组
                 my $group = {member=>[]};
                 for(keys %KEY_MAP_GROUP){
-                    $group->{$_} = defined $e->{$KEY_MAP_GROUP{$_}}?encode("utf8",$e->{$KEY_MAP_GROUP{$_}}):"";
+                    $group->{$_} = $e->{$KEY_MAP_GROUP{$_}} // "";
                 }
                 if($e->{MemberCount} != 0){
                     for my $m (@{$e->{MemberList}}){
                         my $member = {};
                         for(keys %KEY_MAP_GROUP_MEMBER){
-                            $member->{$_} = defined $m->{$KEY_MAP_GROUP_MEMBER{$_}}?encode("utf8", $m->{$KEY_MAP_GROUP_MEMBER{$_}}):"";
+                            $member->{$_} = $m->{$KEY_MAP_GROUP_MEMBER{$_}} // "";
                         }
                         push @{ $group->{member} }, $member;
                     }
                 }
                 my $g = $self->search_group(id=>$group->{id});
                 if(not defined $g){#新增群组
-                    $self->add_group(Mojo::Weixin::Group->new($group));
+                    if(not $self->update_group($group->{id},1)){
+                        $self->add_group(Mojo::Weixin::Group->new($group));
+                    }
                 }
                 else{#更新已有联系人
                     $g->update($group);
@@ -189,10 +187,12 @@ sub _parse_sync_data {
             else{#联系人
                 my $friend = {};
                 for(keys %KEY_MAP_FRIEND){
-                    $friend->{$_} = encode("utf8",$e->{$KEY_MAP_FRIEND{$_}}) if defined $e->{$KEY_MAP_FRIEND{$_}};
+                    $friend->{$_} = $e->{$KEY_MAP_FRIEND{$_}} if defined $e->{$KEY_MAP_FRIEND{$_}};
                 }
                 my $f = $self->search_friend(id=>$friend->{id});
-                if(not defined $f){$self->add_friend(Mojo::Weixin::Friend->new($friend))}
+                if(not defined $f){
+                    $self->add_friend(Mojo::Weixin::Friend->new($friend));
+                }
                 else{$f->update($friend)}
             }
         }
@@ -220,7 +220,7 @@ sub _parse_sync_data {
         for my $e (@{$json->{AddMsgList}}){
             my $msg = {};
             for(keys %KEY_MAP_MESSAGE){
-                $msg->{$_} = defined $e->{$KEY_MAP_MESSAGE{$_}}?encode("utf8",$e->{$KEY_MAP_MESSAGE{$_}}):"";
+                $msg->{$_} = $e->{$KEY_MAP_MESSAGE{$_}} // "";
             }
             if($e->{MsgType} == 1){#好友消息或群消息
                 $msg->{format} = "text";
@@ -229,31 +229,31 @@ sub _parse_sync_data {
                 $msg->{format} = "media";
                 $msg->{media_type} = "image";
                 $msg->{media_code} = $e->{MsgType};
-                $msg->{media_id} = $msg->{id};
+                $msg->{media_id} = $msg->{id} . ":" . $msg->{media_code};
             }
             elsif($e->{MsgType} == 47){#表情或gif图片
                 $msg->{format} = "media";
                 $msg->{media_type} = "emoticon";
                 $msg->{media_code} = $e->{MsgType};
-                $msg->{media_id} = $msg->{id};
+                $msg->{media_id} = $msg->{id} . ":" . $msg->{media_code};
             }
             elsif($e->{MsgType} == 62){#小视频
                 $msg->{format} = "media";
                 $msg->{media_type} = "microvideo";
                 $msg->{media_code} = $e->{MsgType};
-                $msg->{media_id} = $msg->{id};
+                $msg->{media_id} = $msg->{id} . ":" . $msg->{media_code};
             }
             elsif($e->{MsgType} == 43){#视频
                 $msg->{format} = "media";
                 $msg->{media_type} = "video";
                 $msg->{media_code} = $e->{MsgType};
-                $msg->{media_id} = $msg->{id};
+                $msg->{media_id} = $msg->{id} . ":" . $msg->{media_code};
             }
             elsif($e->{MsgType} == 34){#语音
                 $msg->{format} = "media";
                 $msg->{media_type} = "voice";
                 $msg->{media_code} = $e->{MsgType};
-                $msg->{media_id} = $msg->{id};
+                $msg->{media_id} = $msg->{id} . ":" . $msg->{media_code};
             }
             elsif($e->{MsgType} == 37){#好友推荐消息
                 $msg->{format} = "text";
@@ -261,23 +261,36 @@ sub _parse_sync_data {
                 #$msg->{type} = "friend_message";
                 #$msg->{receiver_id} = $self->user->id;
                 #$msg->{sender_id} = $e->{FromUserName};
-                my $id = encode("utf8",$e->{RecommendInfo}{UserName});
-                my $displayname = encode("utf8",$e->{RecommendInfo}{NickName});
-                my $verify = encode("utf8",$e->{RecommendInfo}{Content});
-                my $ticket = encode("utf8",$e->{RecommendInfo}{Ticket});
+                my $id = $e->{RecommendInfo}{UserName};
+                my $displayname = $e->{RecommendInfo}{NickName};
+                my $verify = $e->{RecommendInfo}{Content};
+                my $ticket = $e->{RecommendInfo}{Ticket};
                 #$msg->data({id=>$id,verify=>$verify,ticket=>$ticket,displayname=>$displayname});
                 #$msg->{content} = "收到[ " . $displayname  . " ]好友验证请求：" . ($verify?$verify:"(验证内容为空)");
                 $self->_webwxstatusnotify($e->{FromUserName},1);
                 $self->emit("friend_request",$id,$displayname,$verify,$ticket);
                 next;
             }
-            elsif($e->{MsgType} == 10000){
+            elsif($e->{MsgType} == 10000){#群提示消息
                 $msg->{format} = "text";
+            }
+            elsif($e->{MsgType} == 10002){#撤回消息
+                $msg->{format} = "revoke";
             }
             elsif($e->{MsgType} == 49) {#应用分享
                 $msg->{format} = "app";
-                $msg->{app_title} = encode("utf8",$e->{FileName});
-                $msg->{app_url}   = encode("utf8",$e->{Url});
+                $msg->{app_title} = $e->{FileName};
+                $msg->{app_url}   = $e->{Url};
+            }
+            elsif($e->{MsgType} == 42){#名片消息
+                $msg->{format} = "card";
+                $msg->{card_name} = $e->{RecommendInfo}{NickName};
+                $msg->{card_id} = $e->{RecommendInfo}{UserName};
+                $msg->{card_province} = $e->{RecommendInfo}{Province};
+                $msg->{card_city} = $e->{RecommendInfo}{City};
+                $msg->{card_account} = $e->{RecommendInfo}{Alias};
+                $msg->{card_sex} = $self->code2sex($e->{RecommendInfo}{Sex});
+                #$msg->{card_avatar} = '';
             }
             #elsif($e->{MsgType} == 51){#系统通知
             #    $msg->{format} = "text";
@@ -334,14 +347,17 @@ sub _parse_sync_data {
                     $msg->{content}=~s/<br\/>/\n/g;
                     require Mojo::DOM;
                     my $dom = Mojo::DOM->new($msg->{content});
-                    return if $dom->at('msg > appmsg > type')->content != 5;
+                    if( $dom->at('msg > appmsg > type')->content != 5){
+                        $msg->{content} = "[应用分享]标题：$msg->{app_title}\n[应用分享]链接：$msg->{app_url}"; 
+                        return;
+                    }
                     $msg->{app_id} = $dom->at('msg > appmsg')->attr->{appid};
                     $msg->{app_title} = $dom->at('msg > appmsg > title')->content;
                     $msg->{app_name} = $dom->at('msg > appinfo > appname')->content;
                     $msg->{app_url} = $dom->at('msg > appmsg > url')->content;
                     $msg->{app_desc} = $dom->at('msg > appmsg > des')->content;
                     for( ($msg->{app_title},$msg->{app_desc},$msg->{app_url},$msg->{app_name}) ){
-                        s/!\[CDATA\[(.*?)\]\]/$1/g;
+                        s/<!\[CDATA\[(.*?)\]\]>/$1/g;
                     }
                     $msg->{app_url} = Mojo::Util::html_unescape($msg->{app_url});
                     $msg->{content} = "[应用分享]标题：@{[$msg->{app_title} || '未知']}\n[应用分享]描述：@{[$msg->{app_desc} || '未知']}\n[应用分享]应用：@{[$msg->{app_name} || '未知']}\n[应用分享]链接：@{[$msg->{app_url} || '未知']}";
@@ -350,6 +366,52 @@ sub _parse_sync_data {
                     $self->warn("app message xml parse fail: $@") if $@;
                     $msg->{content} = "[应用分享]标题：$msg->{app_title}\n[应用分享]链接：$msg->{app_url}";
                 }
+            }
+            elsif($msg->{format} eq "revoke"){
+                #<sysmsg type=\"revokemsg\"><revokemsg><session>wxid_8mn2bmkx40so22</session><oldmsgid>1072643834</oldmsgid><msgid>4835386562261263795</msgid><replacemsg><![CDATA[你撤回了一条消息]]></replacemsg></revokemsg></sysmsg>
+                eval{
+                    require Mojo::DOM;
+                    my $dom = Mojo::DOM->new($msg->{content});
+                    return if  $dom->at('sysmsg')->attr->{type} ne 'revokemsg';
+                    #$msg->{revoke_session} = $dom->at('sysmsg > revokemsg > session')->content;
+                    $msg->{revoke_id} = $dom->at('sysmsg > revokemsg > msgid')->content;
+                    $msg->{content} = $dom->at('sysmsg > revokemsg > replacemsg')->content;
+                    $msg->{content}=~s/<!\[CDATA\[(.*?)\]\]>/$1/g;
+
+                    #纠正自己撤回消息时，消息类型错乱的问题
+                    if($msg->{content} eq '你撤回了一条消息' and $msg->{class} eq 'recv'){
+                        $msg->{class} = 'send';
+                        $msg->{source} = 'outer';
+                        if($msg->{type} eq "group_message"){
+                            $msg->{sender_id} = $msg->{receiver_id};
+                            delete $msg->{receiver_id};
+                        }
+                        elsif($msg->{type} eq "friend_message"){
+                            ($msg->{sender_id},$msg->{receiver_id}) = ($msg->{receiver_id},$msg->{sender_id});
+                        }
+                    }
+                    $msg->{content} = "[撤回消息](" . $msg->{content} . ")";
+                };
+                if($@){
+                    $self->warn("app message xml parse fail: $@") if $@;
+                    $msg->{content} = "[撤回消息]";
+                }
+            }
+            elsif($msg->{format} eq "card"){
+                #<msg bigheadimgurl="http://wx.qlogo.cn/mmhead/ver_1/k99g2RHrEeib9KMhGmXZGSIGDjgnmiaX2acT2wl04so2ibsq8ysVPRkRRNQyRLmUVptBpcHt6lvUZym5JgOSd4fug/0" smallheadimgurl="http://wx.qlogo.cn/mmhead/ver_1/k99g2RHrEeib9KMhGmXZGSIGDjgnmiaX2acT2wl04so2ibsq8ysVPRkRRNQyRLmUVptBpcHt6lvUZym5JgOSd4fug/132" username="xxx" nickname="xxx"  shortpy="" alias="" imagestatus="3" scene="17" province="xxx" city="xxx" sign="" sex="1" certflag="0" certinfo="" brandIconUrl="" brandHomeUrl="" brandSubscriptConfigUrl="" brandFlags="0" regionCode="CN_Shanghai_Pudong New District" />
+                $msg->{content}=~s/<br\/>/\n/g;
+                eval{
+                    require Mojo::DOM;
+                    my $dom = Mojo::DOM->new($msg->{content});
+                    $msg->{card_avatar} = $dom->at('msg')->attr->{bigheadimgurl};
+                    $msg->{card_name} = $dom->at('msg')->attr->{nickname};
+                    $msg->{card_account} = $dom->at('msg')->attr->{alias};
+                    $msg->{card_province} = $dom->at('msg')->attr->{province};
+                    $msg->{card_city} = $dom->at('msg')->attr->{city};
+                    $msg->{card_sex} = $self->code2sex($dom->at('msg')->attr->{sex});
+                };
+                $self->warn("app message xml parse fail: $@") if $@;
+                $msg->{content} = "[名片]昵称：@{[$msg->{card_name} || '未知']}\n[名片]性别：@{[$msg->{card_sex} || '未知']}\n[名片]位置：@{[$msg->{card_province} || '未知']} @{[$msg->{card_city} || '未知']}\n[名片]头像：@{[$msg->{card_avatar} || '未知']}";
             }
             $self->message_queue->put(Mojo::Weixin::Message->new($msg)); 
         }
@@ -361,25 +423,6 @@ sub _parse_sync_data {
     }
 }
 
-sub _parse_send_status_data {
-    my $self = shift;
-    my $json = shift;
-    if(defined $json){
-        if($json->{BaseResponse}{Ret}!=0){
-            return Mojo::Weixin::Message::SendStatus->new(
-                        code=>$json->{BaseResponse}{Ret},
-                        msg=>"发送失败",
-                        info=>encode("utf8",$json->{BaseResponse}{ErrMsg}||"")
-                    ); 
-        }
-        else{
-            return Mojo::Weixin::Message::SendStatus->new(code=>0,msg=>"发送成功",info=>"");
-        }
-    }
-    else{
-        return Mojo::Weixin::Message::SendStatus->new(code=>-1,msg=>"发送失败",info=>"数据格式错误");
-    }
-}
 sub send_message{
     my $self = shift;
     my $object = shift;
@@ -401,7 +444,8 @@ sub send_message{
         from  => "code",
     );
 
-    $callback->($self,$msg) if ref $callback eq "CODE"; 
+    $callback->($self,$msg) if ref $callback eq "CODE";
+    $self->emit(before_send_message=>$msg);
     $self->message_queue->put($msg);
 
 }
@@ -424,7 +468,13 @@ sub send_media {
         if(defined $media_info->{media_id}){#定义了media_id意味着不会上传文件，忽略media_path
             my ($id,$code) = split(/:/,$media_info->{media_id},2);
             $media_info->{media_id} = $id if $id;
-            $media_info->{media_code} = $code || 6 if not defined $media_info->{media_code} ;
+            $media_info->{media_code} = $code if $code;
+            if(!defined $media_info->{media_code} and defined $media_info->{media_type}){
+               $media_info->{media_code} = $KEY_MAP_MEDIA_CODE{$media_info->{media_type}} // 6; 
+            }
+            elsif(!defined $media_info->{media_code}){
+                $media_info->{media_code} = 6;
+            }
         }
         if(defined $media_info->{media_code} and !defined $media_info->{media_type}){
             $media_info->{media_type} = $KEY_MAP_MEDIA_TYPE{$media_info->{media_code}} || 'file';
@@ -474,7 +524,9 @@ sub upload_media {
     $self->_upload_media($msg,sub{
         my($msg,$json) = @_;
         $callback->({
-            media_id    => join(":",$msg->media_id,$msg->media_code),
+            media_id    => $msg->media_id,
+            media_code  => $msg->media_code,
+            media_type  => $msg->media_type,
             media_path  => $msg->media_path,
             media_name  => $msg->media_name,
             media_size  => $msg->media_size,

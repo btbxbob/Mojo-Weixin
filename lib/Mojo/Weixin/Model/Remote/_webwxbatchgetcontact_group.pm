@@ -1,11 +1,11 @@
-#该源码文件已临时废弃
 use strict;
-use Mojo::Weixin::Const qw(%KEY_MAP_USER %KEY_MAP_GROUP %KEY_MAP_GROUP_MEMBER %KEY_MAP_FRIEND);
-sub Mojo::Weixin::_webwxbatchgetcontact{
+use Mojo::Weixin::Const qw(%KEY_MAP_GROUP %KEY_MAP_GROUP_MEMBER);
+use Mojo::Weixin::Model::Remote::_webwxbatchgetcontact_group_member;
+sub Mojo::Weixin::_webwxbatchgetcontact_group{
     my $self  = shift;
+    my $is_update_group_member_detail = shift // 1;
     my @ids = @_;
-    my @friends;
-    my @groups;
+    my @return;
     my $api = "https://".$self->domain . "/cgi-bin/mmwebwx-bin/webwxbatchgetcontact";
 
     while( my @id = splice(@ids,0,50) ){
@@ -28,34 +28,43 @@ sub Mojo::Weixin::_webwxbatchgetcontact{
         next unless defined $json;
         next if $json->{BaseResponse}{Ret}!=0;
         for my $e (@{$json->{ContactList}}){
-            if($self->is_group($e->{UserName})){
-                my $group = {};
-                for(keys %KEY_MAP_GROUP){
-                    $group->{$_} = $e->{$KEY_MAP_GROUP{$_}} // "";
+            next if not $self->is_group($e->{UserName});
+            my $group = {};
+            for(keys %KEY_MAP_GROUP){
+                $group->{$_} = $e->{$KEY_MAP_GROUP{$_}} // "";
+            }
+            if($is_update_group_member_detail){
+                my @member = $self->_webwxbatchgetcontact_group_member($group->{_eid},map {$_->{UserName}} @{$e->{MemberList}});
+                if(@member){
+                    $group->{member} = \@member;
                 }
+                else{
+                    for my $m (@{$e->{MemberList}}){
+                        my $member = {};
+                        for(keys %KEY_MAP_GROUP_MEMBER){
+                            $member->{$_} = $m->{$KEY_MAP_GROUP_MEMBER{$_}} // "";
+                        }
+                        $member->{sex} = $self->code2sex($member->{sex});
+                        push @{$group->{member}},$member;
+                    }
+                }
+            }
+            else{
                 for my $m (@{$e->{MemberList}}){
                     my $member = {};
                     for(keys %KEY_MAP_GROUP_MEMBER){
-                        $member->{$_} = $m->{$KEY_MAP_GROUP_MEMBER{$_}}  // "";
+                        $member->{$_} = $m->{$KEY_MAP_GROUP_MEMBER{$_}} // "";
                     }
                     $member->{sex} = $self->code2sex($member->{sex});
                     push @{$group->{member}},$member;
                 }
-                push @groups,$group;
             }
-            else{
-                my $friend = {};
-                for(keys %KEY_MAP_FRIEND){
-                    $friend->{$_} = $e->{$KEY_MAP_FRIEND{$_}} // "";
-                }
-                $friend->{sex} = $self->code2sex($friend->{sex});
-                push @friends,$friend;
-            }
+            push @return,$group;
         }
 
     }
-    return  if @friends ==0 and @groups == 0;
-    return [\@friends,\@groups];
+    return if @return ==0;
+    return wantarray?@return:$return[0];
 }
 
 1;

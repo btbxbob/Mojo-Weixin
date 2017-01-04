@@ -1,5 +1,5 @@
 package Mojo::Weixin::Request;
-use Mojo::Util qw(url_escape encode);
+use Mojo::Util ();
 use List::Util qw(first);
 sub gen_url{
     my $self = shift;
@@ -24,7 +24,7 @@ sub gen_url2{
         my $val = shift(@query_string);
         $key = "" if not defined $key;
         $val = "" if not defined $val;
-        push @query_string_pairs , $key . "=" . url_escape($val);
+        push @query_string_pairs , $key . "=" . Mojo::Util::url_escape($val);
     }
     return $url . '?' . join("&",@query_string_pairs);
 }
@@ -42,21 +42,49 @@ sub _ua_debug {
     return if not $opt->{ua_debug};
     $self->print("-- " . ($is_blocking?"Blocking":"Non-blocking"). " request (@{[$tx->req->url->to_abs]})\n");
 
-    $opt->{ua_debug_req_body}?$self->print("-- Client >>> Server (@{[$tx->req->url->to_abs]})\n@{[$tx->req->to_string]}\n"):$self->print("-- Client >>> Server (@{[$tx->req->url->to_abs]})\n@{[$tx->req->build_start_line . $tx->req->build_headers]}\n[body data skipped]\n");
-
-    my $res_content_type = eval {$tx->res->headers->content_type};
-    if(defined $res_content_type and $res_content_type =~m#^(image|video|auido)/|^application/octet-stream#){
-        $self->print("-- Server >>> Client (@{[$tx->req->url->to_abs]})\n@{[$tx->res->build_start_line . $tx->res->build_headers]}\n[binary data not shown]");
+    if($opt->{ua_debug_req_body}){#是否打印请求body
+        my $req_content_type = eval {$tx->req->headers->content_type};
+        if(defined $req_content_type and $req_content_type =~ /^multipart\/form-data; boundary=(.+?)$/){#对于文件上传不打印body中的二进制
+            my $body = $tx->req->build_body;
+            my $boundary = "--".$1;
+            my $filename_pos = index($body,"filename=");
+            if($filename_pos != -1){
+                my $binary_start_pos = index($body,"\r\n\r\n",$filename_pos);
+                if($binary_start_pos!=-1){
+                    my $binary_end_pos = index($body,$boundary,$binary_start_pos);
+                    substr($body,$binary_start_pos,$binary_end_pos-$binary_start_pos+1,"\r\n\r\n[binary data not shown]\r\n") if $binary_end_pos != -1;
+                }
+            }
+            $self->print("-- Client >>> Server (@{[$tx->req->url->to_abs]})\n@{[$tx->req->build_start_line . $tx->req->build_headers]}\n$body\n");
+        }
+        else{#其他非文件上传的请求，打印完整的header和body
+            $self->print("-- Client >>> Server (@{[$tx->req->url->to_abs]})\n@{[$tx->req->to_string]}\n");
+        }
+        
     }
     else{
-        $opt->{ua_debug_res_body}?$self->print("-- Server >>> Client (@{[$tx->req->url->to_abs]})\n@{[$tx->res->to_string]}\n"):$self->print("-- Server >>> Client (@{[$tx->req->url->to_abs]})\n@{[$tx->res->build_start_line . $tx->res->build_headers]}\n[body data skipped]\n");
+        $self->print("-- Client >>> Server (@{[$tx->req->url->to_abs]})\n@{[$tx->req->build_start_line . $tx->req->build_headers]}\n[body data skipped]\n");
+    }
+
+    if($opt->{ua_debug_res_body}){
+        my $res_content_type = eval {$tx->res->headers->content_type};
+        if(defined $res_content_type and $res_content_type =~m#^(image|video|auido)/|^application/octet-stream#){
+            $self->print("-- Server >>> Client (@{[$tx->req->url->to_abs]})\n@{[$tx->res->build_start_line . $tx->res->build_headers]}\n[binary data not shown]");
+        }
+        else{
+            $self->print("-- Server >>> Client (@{[$tx->req->url->to_abs]})\n@{[$tx->res->to_string]}\n");
+        }
+    }
+    else{
+        $self->print("-- Server >>> Client (@{[$tx->req->url->to_abs]})\n@{[$tx->res->build_start_line . $tx->res->build_headers]}\n[body data skipped]\n");
     }
 }
 sub _http_request{
     my $self = shift;
     my $method = shift;
     my %opt = (
-        json                =>  0,
+        json                =>  0,  
+        blocking            =>  0,
         ua_retry_times      =>  $self->ua_retry_times,
         #ua_connect_timeout  =>  $self->ua_connect_timeout,
         #ua_request_timeout  =>  $self->ua_request_timeout,
@@ -67,6 +95,7 @@ sub _http_request{
     );
     if(ref $_[1] eq "HASH"){#with header or option
         $opt{json} = delete $_[1]->{json} if defined $_[1]->{json};
+        $opt{blocking} = delete $_[1]->{blocking} if defined $_[1]->{blocking};
         $opt{ua_retry_times} = delete $_[1]->{ua_retry_times} if defined $_[1]->{ua_retry_times};
         $opt{ua_debug}          = delete $_[1]->{ua_debug} if defined $_[1]->{ua_debug};
         $opt{ua_debug_res_body} = delete $_[1]->{ua_debug_res_body} if defined $_[1]->{ua_debug_res_body};
@@ -75,24 +104,25 @@ sub _http_request{
         $opt{ua_request_timeout} = delete $_[1]->{ua_request_timeout} if defined $_[1]->{ua_request_timeout};
         $opt{ua_inactivity_timeout} = delete $_[1]->{ua_inactivity_timeout} if defined $_[1]->{ua_inactivity_timeout};
     }
-    if(ref $_[-1] eq "CODE"){
+    if(ref $_[-1] eq "CODE" and !$opt{blocking}){
         my $cb = pop;
         return $self->ua->$method(@_,sub{
             my($ua,$tx) = @_;
-            _ua_debug($self,$ua,$tx,\%opt,0) if $opt{ua_debug};;
+            _ua_debug($self,$ua,$tx,\%opt,0) if $opt{ua_debug};
             $self->save_cookie();
             if(defined $tx and $tx->success){
-                my $r = $opt{json}?$self->decode_json($tx->res->body):$tx->res->body;
+                my $r = $opt{json}?$self->from_json($tx->res->body):$tx->res->body;
                 $cb->($r,$ua,$tx);
             }
             elsif(defined $tx){
-                $self->warn($tx->req->url->to_abs . " 请求失败: " . ($tx->error->{code}||"-") . " " . encode("utf8",$tx->error->{message}));
+                $self->warn($tx->req->url->to_abs . " 请求失败: " . ($tx->error->{code}||"-") . " " . $self->encode_utf8($tx->error->{message}));
                 $cb->(undef,$ua,$tx);
             }
         });
     }
     else{
         my $tx;
+        my $cb = pop if ref $_[-1] eq "CODE";
         for(my $i=0;$i<=$opt{ua_retry_times};$i++){
             if($opt{ua_connect_timeout} or  $opt{ua_request_timeout} or $opt{ua_inactivity_timeout}){
                 my $connect_timeout = $self->ua->connect_timeout;
@@ -109,18 +139,20 @@ sub _http_request{
             else{
                 $tx = $self->ua->$method(@_);
             }
-            _ua_debug($self,$ua,$tx,\%opt,1) if $opt{ua_debug};;
+            _ua_debug($self,$ua,$tx,\%opt,1) if $opt{ua_debug};
             $self->save_cookie();
             if(defined $tx and $tx->success){
-                my $r = $opt{json}?$self->decode_json($tx->res->body):$tx->res->body;
+                my $r = $opt{json}?$self->from_json($tx->res->body):$tx->res->body;
+                $cb->($r,$ua,$tx) if defined $cb;
                 return wantarray?($r,$self->ua,$tx):$r;
             }
             elsif(defined $tx){
-                $self->warn($tx->req->url->to_abs . " 请求失败: " . ($tx->error->{code} || "-") . " " . encode("utf8",$tx->error->{message}));
+                $self->warn($tx->req->url->to_abs . " 请求失败: " . ($tx->error->{code} || "-") . " " . $self->encode_utf8($tx->error->{message}));
                 next;
             }
         }
-        $self->warn($tx->req->url->to_abs . " 请求失败: " . ($tx->error->{code}||"-") . " " . encode("utf8",$tx->error->{message})) if defined $tx;
+        $self->warn($tx->req->url->to_abs . " 请求失败: " . ($tx->error->{code}||"-") . " " . $self->encode_utf8($tx->error->{message})) if defined $tx;
+        $cb->($r,$ua,$tx) if defined $cb;
         return wantarray?(undef,$self->ua,$tx):undef;
     }
 }
@@ -133,7 +165,7 @@ sub load_cookie{
     return if not -f $cookie_path;
     eval{require Storable;$cookie_jar = Storable::retrieve($cookie_path)};
     if($@){
-        $self->warn("客户端加载cookie失败: $@");
+        $self->warn("客户端加载cookie[ $cookie_path ]失败: $@");
         return;
     }
     else{
@@ -145,10 +177,9 @@ sub load_cookie{
 sub save_cookie{
     my $self = shift;
     return if not $self->keep_cookie;
-    return if not defined $self->wxuin;
     my $cookie_path = $self->cookie_path;
     eval{Storable::nstore($self->ua->cookie_jar,$cookie_path);};
-    $self->warn("客户端保存cookie失败: $@") if $@;
+    $self->warn("客户端保存cookie[ $cookie_path ]失败: $@") if $@;
 }
 
 sub search_cookie{

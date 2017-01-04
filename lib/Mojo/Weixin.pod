@@ -132,7 +132,7 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
 =head3 客户端对象属性
 
     $client->log_level  #日志记录等级 默认info
-    $client->log_path   #日志记录路径，默认undef，打印到STDERR
+    $client->log_path   #日志记录路径，默认undef，打印到STDOUT
     $client->version    #客户端版本
 
     #获取客户端属性
@@ -154,8 +154,8 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
     keep_cookie     #默认为1，0表示不保存登录cookie，1表示保存登录cookie方便下次直接恢复登录
 
     log_level       #默认级别为info，可以设置debug|info|warn|error|fatal
-    log_path        #默认客户端输出内容打印到STDERR 设置该参数可以将客户端输出重定向到文件
-    log_unicode     #支持打印unicode字符，默认值为0 不开启
+    log_path        #默认客户端输出内容打印到STDOUT 设置该参数可以将客户端输出重定向到文件
+    log_console     #打印到文件的同时也打印到屏幕，方便调试，默认 1
     log_encoding    #输出日志的编码，默认自动检测，如果出现乱码可以尝试手动设置一下输出编码
                     #编码必须是 Encode 模块支持的格式，比如utf8 gbk等
 
@@ -174,6 +174,12 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
 
     qrcode_count_max #每个二维码都有一个过期时间，过期后会重新下载一个二维码继续等待扫描
                      #如果等待扫码次数超过 qrcode_count_max 客户端会停止运行，默认10次
+
+    is_init_group_member   #是否在客户端初始登录时获取详细的群成员信息（比如account/sex）等，
+                           #默认为0，如果你很在意这些群成员属性，可以设置为1，但可能会极大降低启动速度
+
+    #注意：所有参数都支持通过环境变量来设置，参数对应的环境变量格式 MOJO_WEIXIN_{参数名大写}
+    #比如: MOJO_WEIXIN_ACCOUNT、 MOJO_WEIXIN_HTTP_DEBUG
 
 =head4 login 客户端登录
 
@@ -370,10 +376,11 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
     $friend->set_markname(""); #取消备注
     $member->set_markname("小李");
 
-=head4 sticky_group() 置顶群组
+=head4 stick() 置顶群组
 
-    $group->sticky_group(0);#取消置顶
-    $group->sticky_group(1);#置顶
+    $group->stick(0);#取消置顶
+    $group->stickp(1);#置顶
+    $friend->stick(1);
 
 =head4 create_group()  创建群组
 
@@ -641,6 +648,13 @@ Mojo::Weixin - A Weixin Client Framework base on Mojolicious
         # $data 图片的原始二进制数据
         # $msg  图片对应的消息对象
         ...;
+    });
+
+=head2 before_send_message 消息发送前
+
+    $client->on(before_send_message=>sub{
+        my($client,$msg)= @_;
+        $msg->content(  $msg->content . "——我是一个消息小尾巴"  );
     });
 
 =head2 send_message 消息发送完成
@@ -982,6 +996,12 @@ Linux系统下直接打印二维码到终端，作者 hyvinlam L<https://github.
         is_need_at  => 1,           #可选，是否需要艾特我来触发智能回复
         comamnd_on  => "小冰启动",  #可选，启动智能回复的命令，在手机端发送给任何人/群该消息内容即可
         comamnd_off => "小冰停止",  #可选，停止智能回复的命令，在手机端发送给任何人/群该消息内容即可
+        allow_group        => ["PERL学习交流"],    #可选，允许插件的群显示名称
+        ban_group          => ["私人群","测试群"], #可选，禁用该插件的群显示名称
+        allow_group_member => ["王大锤"],          #可选，允许该插件的群成员显示名称
+        ban_group_member   => ["王小二","坏蛋"],   #可选，禁用该插件的群成员显示名称
+        ban_friend         => ["坏蛋","小灰"],     #可选，禁用该插件的好友显示名称
+        allow_friend       => ["可爱"],            #可选，允许该插件的好友显示名称
     });
 
 =head2 Mojo::Weixin::Plugin::SmartReply
@@ -1012,8 +1032,8 @@ Linux系统下直接打印二维码到终端，作者 hyvinlam L<https://github.
 其他更多参数设置
 
     $client->load("KnowledgeBase",data=>{
-        allow_group => ["PERL学习交流"],  #可选，允许插件的群，可以是群名称或群号码
-        ban_group   => ["私人群1","私人群2"], #可选，禁用该插件的群，可以是群名称或群号码
+        allow_group => ["PERL学习交流"],  #可选，允许插件的群名称
+        ban_group   => ["私人群1","私人群2"], #可选，禁用该插件的群名称
         file => './KnowledgeBase.dat', #数据库保存路径
         learn_command  => 'learn',     #自定义学习指令关键字
         delete_command =>'del',      #自定义删除指令关键字
@@ -1066,9 +1086,13 @@ Linux系统下直接打印二维码到终端，作者 hyvinlam L<https://github.
         auth   => sub {my($param,$controller) = @_},    #可选，认证回调函数，用于进行请求鉴权
         post_api => 'http://xxxx',                      #可选，你自定义的接收消息上报接口
         post_event => 1,                                #可选，是否上报事件，为了向后兼容性，默认值为0
-        post_media_data => 1,                        #可选，是否上报经过base64编码的图片原始数据，默认值为1
+        post_media_data => 1,                           #可选，是否上报经过base64编码的图片原始数据，默认值为1
         post_event_list => ['login','stop','state_change','input_qrcode'], #可选，上报事件列表
+        #poll_api  => 'http://xxxx',                     #可选，从外网调用内网程序的api时需要使用到，默认不启用
+        #poll_interval   => 5,                           #可选，长轮询请求间隔，默认5s
     });
+
+    #关于 poll_api 参数的说明，参见L<https://github.com/sjdy521/Mojo-Weixin/blob/master/API.md#关于内网穿透的说明>
 
     #若data中设置了auth函数引用，则表示api接口开启认证
     #认证函数返回值为真，认证通过，函数返回值为假，认证失败，接口返回403

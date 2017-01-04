@@ -4,12 +4,14 @@ use base qw(Mojo::Weixin::Model::Base);
 use List::Util qw(first);
 use Mojo::Weixin::Model::Remote::_webwxinit;
 use Mojo::Weixin::Model::Remote::_webwxgetcontact;
-use Mojo::Weixin::Model::Remote::_webwxbatchgetcontact;
+use Mojo::Weixin::Model::Remote::_webwxbatchgetcontact_friend;
+use Mojo::Weixin::Model::Remote::_webwxbatchgetcontact_group;
+use Mojo::Weixin::Model::Remote::_webwxbatchgetcontact_group_member;
 use Mojo::Weixin::Model::Remote::_webwxstatusnotify;
 use Mojo::Weixin::Model::Remote::_webwxcreatechatroom;
 use Mojo::Weixin::Model::Remote::_webwxupdatechatroom;
 use Mojo::Weixin::Model::Remote::_webwxoplog_markname;
-use Mojo::Weixin::Model::Remote::_webwxoplog_sticky;
+use Mojo::Weixin::Model::Remote::_webwxoplog_stick;
 use Mojo::Weixin::Model::Remote::_webwxverifyuser;
 use Mojo::Weixin::Model::Remote::_webwxgetheadimg;
 use Mojo::Weixin::User;
@@ -30,6 +32,7 @@ sub model_init{
         $self->info("更新个人信息成功");
         $self->user(Mojo::Weixin::User->new($user));
         $self->_webwxstatusnotify($self->user->id,3);
+        $self->emit(update_user=>$self->user);
     }
     my $contactinfo = $self->_webwxgetcontact();
     if(not defined $contactinfo){
@@ -40,6 +43,7 @@ sub model_init{
     if(ref $friends eq "ARRAY" and @$friends>0){
         $self->friend([ map {Mojo::Weixin::Friend->new($_)} grep {$_->{id} ne $user->{id}} @$friends ]);
         $self->info("更新好友信息成功");
+        $self->emit(update_friend=>$self->friend);
     }
 
     my %groups_id;
@@ -54,12 +58,23 @@ sub model_init{
         }
     }
     if(keys %groups_id){
-        my $info = $self->_webwxbatchgetcontact(keys %groups_id);
-        if(defined $info){
-            my(undef,$groups) = @$info;
-            if(ref $groups eq "ARRAY" and @$groups >0){
-                $self->group([ map { Mojo::Weixin::Group->new($_) } @$groups ]);
+        my @groups = $self->_webwxbatchgetcontact_group(0,keys %groups_id);
+        if(@groups){
+            if($self->is_init_group_member){
+                $self->group([]);
+                for my $g (@groups){
+                    my @member = $self->_webwxbatchgetcontact_group_member($g->{_eid},map {$_->{id}} @{$g->{member}});
+                    $g->{member} = \@member if @member;
+                    my $group = Mojo::Weixin::Group->new($g);
+                    push @{  $self->group },$group;
+                    $self->info("更新群组[ @{[$group->displayname]} ]信息成功");
+                }
+                $self->emit(update_group=>$self->group);
+            }
+            else{
+                $self->group([ map { Mojo::Weixin::Group->new($_) } @groups ]);
                 $self->info("更新群组[ @{[$_->displayname]} ]信息成功") for $self->groups;
+                $self->emit(update_group=>$self->group); 
             }
         }
         else{
@@ -76,22 +91,21 @@ sub update_friend{
     my $self = shift;
     if(defined $_[0]){
         my $friend_id = ref $_[0] eq "Mojo::Weixin::Friend"?$_[0]->id:$_[0];
-        my $info = $self->_webwxbatchgetcontact($friend_id);
-        return if not defined $info;
-        my ($friends) = @$info;
-        $self->add_friend(Mojo::Weixin::Friend->new($friends->[0]));
-        return;
+        my $friend = $self->_webwxbatchgetcontact_friend($friend_id);
+        return if not defined $friend;
+        $self->add_friend(Mojo::Weixin::Friend->new($friend));
+        return 1;
     }
 }
 sub update_group{
     my $self = shift;
     if(defined $_[0]){
         my $group_id = ref $_[0] eq "Mojo::Weixin::Group"?$_[0]->id:$_[0];
-        my $info = $self->_webwxbatchgetcontact($group_id);
-        return if not defined $info;
-        my(undef,$groups) = @$info;
-        $self->add_group(Mojo::Weixin::Group->new($groups->[0]));
-        return;
+        my $is_update_group_member = $_[1] // $self->is_update_group_member;
+        my $group = $self->_webwxbatchgetcontact_group($is_update_group_member,$group_id);
+        return if not defined $group;
+        $self->add_group(Mojo::Weixin::Group->new($group));
+        return 1;
     }
 }
 
@@ -172,6 +186,7 @@ sub is_group{
     return $gid=~/^\@\@|\@chatroom$/ ? 1 : 0;
 }
 sub code2sex{
+    my $self = shift;
     my $c = shift;
     my %h = (
         0 => "",
@@ -215,6 +230,7 @@ sub set_markname {
         $self->die("无效的对象数据类型");
         return;
     }
+    $self->warn("设置群成员备注的功能当前可能已被官方屏蔽") if ref $object ne "Mojo::Weixin::Group::Member";
     my $displayname = $object->displayname;
     my $ret = $self->_webwxoplog_markname($object->id,$markname);
     if($ret){
@@ -228,22 +244,22 @@ sub set_markname {
 
 }
 
-sub sticky_group{
+sub stick{
     my $self = shift;
     my $object = shift;
     my $op = shift;
-    if(ref $object ne "Mojo::Weixin::Group"){
+    if(ref $object ne "Mojo::Weixin::Group" and ref $object ne "Mojo::Weixin::Friend"){
         $self->die("无效的对象数据类型");
         return;
     }
-    my $ret = $self->_webwxoplog_sticky($object->id,$op // 1);
+    my $ret = $self->_webwxoplog_stick($object->id,$op // 1);
     my $displayname = $object->displayname;
     if($ret){
-        $op?$self->info("设置群组[ $displayname ]置顶成功"): $self->info("取消群组[ $displayname ]置顶成功");
+        $op?$self->info("设置对象[ $displayname ]置顶成功"): $self->info("取消对象[ $displayname ]置顶成功");
         return 1;
     }
     else{
-        $op?$self->info("设置群组[ $displayname ]置顶失败"): $self->info("取消群组[ $displayname ]置顶失败");
+        $op?$self->info("设置对象[ $displayname ]置顶失败"): $self->info("取消对象[ $displayname ]置顶失败");
         return 0;
     }
 
@@ -387,7 +403,7 @@ sub get_avatar {
     my $self = shift;
     my $object =  shift;
     my $callback = shift;
-    if(ref($object) !~ /Mojo::Weixin::User|Mojo::Weixin::Friend|Mojo::Weixin::Group|Mojo::Weixin::Groupp::Member/){
+    if(ref($object) !~ /Mojo::Weixin::User|Mojo::Weixin::Friend|Mojo::Weixin::Group|Mojo::Weixin::Group::Member/){
         $self->die("不支持的数据类型");
         return;
     }

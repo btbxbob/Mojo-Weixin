@@ -8,6 +8,7 @@ has 'owner_uid';
 has name => '';
 has member => sub{[]};
 has _avatar => '';
+has _eid    => '';
 
 sub get_avatar{
     my $self = shift;
@@ -54,8 +55,13 @@ sub update {
             }
             else{
                 my($new_members,$lost_members,$sames)=$self->client->array_diff($self->member, \@member,sub{$_[0]->id});
-                for(@{$new_members}){
-                    $self->add_group_member($_);
+                if(@{$new_members}){
+                    if(my @m = $self->client->_webwxbatchgetcontact_group_member($self->_eid,map {$_->id} @{$new_members})){
+                        $new_members = [ map {$_->_group_id($self->id);$_ } map { Mojo::Weixin::Group::Member->new($_) } @m];
+                    }
+                    for(@{$new_members}){
+                        $self->add_group_member($_);
+                    }
                 }
                 for(@{$lost_members}){
                     $self->remove_group_member($_);
@@ -124,7 +130,6 @@ sub remove_group_member{
     $self->client->die("不支持的数据类型\n") if ref $member ne "Mojo::Weixin::Group::Member";
     $self->client->emit(lose_group_member=>$member,$self) if $self->_remove($self->member,$member) == 1;
 }
-
 sub me {
     my $self = shift;
     return $self->search_group_member(id=>$self->client->user->id);
@@ -154,9 +159,9 @@ sub kick_group_member{
     my $self = shift;
     $self->client->kick_group_member($self,@_);
 }
-sub sticky_group{
+sub stick{
     my $self = shift;
-    $self->client->sticky_group($self,@_);
+    $self->client->stick($self,@_);
 }
 
 1;

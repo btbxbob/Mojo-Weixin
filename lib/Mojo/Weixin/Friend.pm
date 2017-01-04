@@ -1,7 +1,7 @@
 package Mojo::Weixin::Friend;
 use Mojo::Weixin::Base 'Mojo::Weixin::Model::Base';
 use List::Util qw(first);
-has name => '昵称未知';
+has name => '';
 has [qw( 
     account
     province
@@ -23,12 +23,15 @@ sub new {
     my $self = shift;
     $self = $self->Mojo::Weixin::Base::new(@_);
     $self->client->emoji_convert(\$self->{name},$self->client->emoji_to_text);
+    $self->client->emoji_convert(\$self->{display},$self->client->emoji_to_text);
+    $self->client->emoji_convert(\$self->{markname},$self->client->emoji_to_text);
     if(exists $special_id{$self->id}){
         $self->category("系统帐号");
     }
     elsif(defined $self->_verifyflag and $self->_verifyflag & 8){
         $self->category("公众号");
     }
+    else{$self->category("好友");}
     $self->uid("") if not $self->uid;
     $self;
 }
@@ -39,7 +42,7 @@ sub get_avatar{
 
 sub displayname{
     my $self = shift;
-    return $self->display || $self->markname || $self->name;
+    return $self->display || $self->markname || $self->name || '昵称未知';
 }
 
 sub update{
@@ -48,6 +51,8 @@ sub update{
     for(grep {substr($_,0,1) ne "_"} keys %$hash){
         if(exists $hash->{$_}){
             $self->client->emoji_convert(\$hash->{$_},$self->client->emoji_to_text) if $_ eq "name";
+            $self->client->emoji_convert(\$hash->{$_},$self->client->emoji_to_text) if $_ eq "display";
+            $self->client->emoji_convert(\$hash->{$_},$self->client->emoji_to_text) if $_ eq "markname";
             if(defined $hash->{$_} and defined $self->{$_}){
                 if($hash->{$_} ne $self->{$_}){
                     my $old_property = $self->{$_};
@@ -79,5 +84,9 @@ sub send_media{
 sub set_markname {
     my $self = shift;
     $self->client->set_markname($self,@_);
+}
+sub stick{
+    my $self = shift;
+    $self->client->stick($self,@_);
 }
 1;

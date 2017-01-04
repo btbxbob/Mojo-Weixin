@@ -9,7 +9,6 @@ use Mojo::Weixin::Client::Remote::_sync;
 use Mojo::Weixin::Message::Handle;
 use Mojo::IOLoop;
 use Mojo::IOLoop::Delay;
-use Mojo::Util qw();
 
 use base qw(Mojo::Weixin::Request);
 
@@ -113,14 +112,19 @@ sub ready {
     #接收消息
     $self->on(synccheck_over=>sub{ 
         my $self = shift;
-        my($retcode,$selector,$status) = @_;
         $self->state('running');
+        my($retcode,$selector,$status) = @_;
+        if(not $status){#检查消息异常时，强制把检查消息(synccheck)间隔设置的更久，直到获取消息(sync)正常为止
+            $self->debug("检查消息结果异常");
+            $self->_synccheck_interval($self->synccheck_interval+$self->synccheck_delay);
+        }
         $self->_parse_synccheck_data($retcode,$selector);
-        $self->timer(  ($status? $self->synccheck_interval() : 15)  , sub{$self->_synccheck()});
+        $self->timer($self->_synccheck_interval, sub{$self->_synccheck()});
     });
     $self->on(sync_over=>sub{
         my $self = shift;
-        my $json = shift;
+        my ($json,$status) = @_;
+        $self->_synccheck_interval($status?$self->synccheck_interval:$self->synccheck_interval+$self->synccheck_delay);
         $self->_parse_sync_data($json);
     });
     $self->on(run=>sub{
@@ -339,7 +343,8 @@ sub save_state{
         log_encoding 
         log_path 
         log_level 
-        log_unicode
+        log_console
+        disable_color
         download_media
         tmpdir
         media_dir
@@ -361,14 +366,14 @@ sub save_state{
     eval{
         my $json = {plugin => []};
         for my $attr (@attr){
-            $json->{$attr} = defined $self->$attr?Mojo::Util::decode("utf8",$self->$attr): undef;
+            $json->{$attr} = $self->$attr;
         }
         $json->{pid} = $$;
         $json->{os}  = $^O;
         for my $p (keys %{ $self->plugins }){
             push @{ $json->{plugin} } , { name=>$self->plugins->{$p}{name},priority=>$self->plugins->{$p}{priority},auto_call=>$self->plugins->{$p}{auto_call},call_on_load=>$self->plugins->{$p}{call_on_load} } ;
         }
-        $self->spurt($self->encode_json($json),$self->state_path);
+        $self->spurt($self->to_json($json),$self->state_path);
     };
     $self->warn("客户端状态信息保存失败：$@") if $@;
 }

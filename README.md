@@ -1,4 +1,4 @@
-Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.svg?branch=master)](https://travis-ci.org/sjdy521/Mojo-Weixin) [![Join the chat at https://gitter.im/sjdy521/Mojo-Weixin](https://badges.gitter.im/sjdy521/Mojo-Weixin.svg)](https://gitter.im/sjdy521/Mojo-Weixin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+Mojo-Weixin v1.2.5 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.svg?branch=master)](https://travis-ci.org/sjdy521/Mojo-Weixin) [![Join the chat at https://gitter.im/sjdy521/Mojo-Weixin](https://badges.gitter.im/sjdy521/Mojo-Weixin.svg)](https://gitter.im/sjdy521/Mojo-Weixin?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 ========================
 
 使用Perl语言编写的微信客户端框架，基于Mojolicious，要求Perl版本5.10+，可通过插件提供基于HTTP协议的api接口供其他语言或系统调用
@@ -14,7 +14,7 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 * 支持 创建群组、群组加人/踢人、发送/接受好友验证申请、设置群组名称、设置好友备注
 * 支持 Windows/Linux/Mac 多平台，支持docker镜像，易安装部署，不懂Perl也能用
 * 提供 基于HTTP协议的API接口 ，简洁丰富，方便和其他编程语言集成
-* 主人人品极好，你懂的
+* 一个产品狗的倾情之作，代码由内而外都更加注重“用户体验”，外加主人人品极好，你懂的
 
 ###插件列表
 
@@ -34,7 +34,7 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 |[FuckDaShen](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::FuckDaShen)          |1        |已发布      |sjdy521      |对消息中的"大神"关键词进行鄙视
 |[AutoVerify](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::AutoVerify)          |1        |已发布      |sjdy521      |收到好友验证请求时自动批准同意
 |[PostQRcode](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::PostQRcode)          |0        |已发布      |sjdy521      |登录二维码发送到邮箱实现远程扫码
-|[UploadQRcode](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::UploadQRcode)          |0        |已发布      |sjdy521      |二维码上传腾讯云存储获得公网访问url
+|[UploadQRcode](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::UploadQRcode)          |0        |已发布      |sjdy521      |二维码上传图床获得公网访问url
 |[XiaoiceReply](https://metacpan.org/pod/distribution/Mojo-Weixin/lib/Mojo/Weixin.pod#Mojo::Weixin::Plugin::XiaoiceReply)        |1        |已发布      |sjdy521      |利用微软小冰实现智能聊天回复
 |[ShowQRcode](https://metacpan.org/pod/distribution/Mojo-Weixin/doc/Weixin.pod#Mojo::Weixin::Plugin::ShowQRcode)          |0        |已发布      |sjdy521  |调用系统图片查看程序来示二维码（目前仅支持win）
 |[ShowQRCodeInTerm](https://metacpan.org/pod/distribution/Mojo-Weixin/doc/Weixin.pod#Mojo::Weixin::Plugin::ShowQRCodeInTerm)          |0        |已发布      |hyvinlam  |Linux系统下直接打印二维码到终端
@@ -104,21 +104,21 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 
     建议大家尽量选择**Binaries**（二进制预编译）的版本，安装即可使用，比较方便
 
-  |平台   |推荐选择|下载地址
-  |-------|--------|-------------|
-  |Windows|1. **StrawberryPerl**<br>2. ActivePerl<br>3. **Mojo-StrawberryPerl**|[StrawberryPerl下载地址](http://strawberryperl.com/)<br>[ActivePerl下载地址](http://www.activestate.com/activeperl/downloads)<br>[Mojo-StrawberryPerl下载地址](https://github.com/sjdy521/Mojo-StrawberryPerl)|
-  |Linux  |1. **系统自带**<br>2. **yum/apt等包管理器**<br>3. **官方源码**<br>4. ActivePerl<br>5. Mojo-ActivePerl|[ActivePerl下载地址](http://www.activestate.com/activeperl/downloads)<br>[Mojo-ActivePerl下载地址](https://github.com/sjdy521/Mojo-ActivePerl)|
-  |Mac    |1. **系统自带**<br>2. ActivePerl|[ActivePerl下载地址](http://www.activestate.com/activeperl/downloads)
+    Linux上如果你的perl版本较低，想要升级perl，可以考虑使用工具[perlbrew](https://perlbrew.pl/)
+
+    |平台    |推荐选择  |下载地址         |
+    |:-------|:--------|:---------------|
+    |Windows |1. **StrawberryPerl**<br>2. ActivePerl<br>3. **Mojo-StrawberryPerl**|[StrawberryPerl下载地址](http://strawberryperl.com/)<br>[Mojo-StrawberryPerl下载地址](https://github.com/sjdy521/Mojo-StrawberryPerl)<br>[ActivePerl下载地址](http://www.activestate.com/activeperl/downloads)<br>|
+    |Linux   |1. **系统自带**<br>2. **yum/apt等包管理器**<br>3. 官方源码编译<br>4. **Mojo-CentosPerl**<br>5. ActivePerl<br>6. Mojo-ActivePerl<br>7. DWIM-Perl|[Mojo-CentosPerl下载地址](https://github.com/sjdy521/Mojo-CentosPerl)<br>[ActivePerl下载地址](http://www.activestate.com/activeperl/downloads)<br>[Mojo-ActivePerl下载地址](https://github.com/sjdy521/Mojo-ActivePerl)<br>[DWIM-Perl下载地址](http://dwimperl.com/linux.html)|
+    |Mac     |1. **系统自带**<br>2. ActivePerl|[ActivePerl下载地址](http://www.activestate.com/activeperl/downloads)|
   
     注意：
     
-    [Mojo-ActivePerl](https://github.com/sjdy521/Mojo-ActivePerl)是我基于ActivePerl打包的而成
-  
-    已经包含perl-5.22+cpanm+Mojo-Webqq+Mojo-Weixin的完整运行环境，适用于linux x86_64系统，并且系统glibc 2.15+
+    [Mojo-CentosPerl](https://github.com/sjdy521/Mojo-CentosPerl)是基于Centos系统编译打包而成，适合Centos6.5已上的x86_64系统
     
-    [Mojo-StrawberryPerl](https://github.com/sjdy521/Mojo-StrawberryPerl)是网友 **@那谁** 基于StrawberryPerl精简打包而成
+    [Mojo-ActivePerl](https://github.com/sjdy521/Mojo-ActivePerl)是基于ActivePerl打包的而成，适用于linux x86_64系统，并且系统glibc 2.15+
     
-    已经包含perl-5.24+cpanm+Mojo-Webqq+Mojo-Weixin的完整运行环境，适用于windows 32位/64位系统
+    [Mojo-StrawberryPerl](https://github.com/sjdy521/Mojo-StrawberryPerl)是基于StrawberryPerl精简打包而成，适用于windows 32位/64位系统
 
 2. *安装cpanm工具*（如果系统已经安装了cpanm可以忽略此步骤）
 
@@ -187,7 +187,7 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
         use Mojo::Weixin;
         my ($host,$port,$post_api);
         
-        $host = "0.0.0.0"; #发送消息接口监听地址，修改为自己希望监听的地址
+        $host = "0.0.0.0"; #发送消息接口监听地址，没有特殊需要请不要修改
         $port = 3000;      #发送消息接口监听端口，修改为自己希望监听的端口
         #$post_api = 'http://xxxx';  #接收到的消息上报接口，如果不需要接收消息上报，可以删除或注释此行
         
@@ -255,6 +255,7 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 
 *Python*
 * [WeixinBot](https://github.com/Urinx/WeixinBot) 网页版微信API，包含终端版微信及微信机器人
+* [ItChat](https://github.com/littlecodersh/ItChat) 微信个人号接口、微信机器人及命令行微信。三十行即可自定义个人号机器人
 
 ###捐赠奖励
 
@@ -262,7 +263,7 @@ Mojo-Weixin v1.2.2 [![Build Status](https://travis-ci.org/sjdy521/Mojo-Weixin.sv
 
 ![donate](screenshot/donate.jpg)
 
-特别致谢 [那些曾经捐赠的小伙伴们](https://github.com/sjdy521/Donor-Thanks)
+特别致谢 [那些曾经捐赠的小伙伴们](https://github.com/sjdy521/Mojo-Thanks)
 
 ###COPYRIGHT 和 LICENCE
 
