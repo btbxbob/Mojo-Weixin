@@ -38,6 +38,7 @@ sub call{
             }
             if($msg->sender->id ne $xiaoice->id){
                 if($msg->type eq "group_message"){
+                    return if defined $data->{allow_group_reply} and !$data->{allow_group_reply};
                     return if ref $data->{ban_group}  eq "ARRAY" and first {$msg->group->displayname eq $_} @{$data->{ban_group}};
                     return if ref $data->{allow_group}  eq "ARRAY" and !first {$msg->group->displayname eq $_} @{$data->{allow_group}};
                     return if ref $data->{ban_group_member}  eq "ARRAY" and first {$msg->sender->displayname eq $_} @{$data->{ban_group_user}};
@@ -45,6 +46,7 @@ sub call{
                     return if $is_need_at and !$msg->is_at;
                 }
                 else{
+                    return if defined $data->{allow_friend_reply} and !$data->{allow_friend_reply};
                     return if ref $data->{ban_friend} eq "ARRAY" and first {$msg->sender->displayname eq $_} @{$data->{ban_user}};
                     return if ref $data->{allow_friend} eq "ARRAY" and !first {$msg->sender->displayname eq $_} @{$data->{allow_user}};
                 }
@@ -53,7 +55,7 @@ sub call{
                 my $binder = $db[0];
                 return if not defined $binder;
                 if($msg->format eq "media" and (defined $msg->media_id or  -e $msg->media_path) ){
-                    $binder->send_media(media_path=>$msg->media_path);
+                    $binder->send_media($msg->media_path);
                 }
                 else{
                     $binder->send($msg->content);
@@ -65,7 +67,7 @@ sub call{
                     $db[0] = $object;
                     $msg->remove_at();
                     if($msg->format eq "media" and (defined $msg->media_id or -e $msg->media_path) ){
-                        $xiaoice->send_media(media_path=>$msg->media_path);
+                        $xiaoice->send_media($msg->media_path);
                     }
                     else{
                         $xiaoice->send($msg->content);
@@ -74,7 +76,7 @@ sub call{
                 elsif(@db > 0 and $db[0]->id eq $object->id){
                     $msg->remove_at();
                     if($msg->format eq "media" and (defined $msg->media_id or -e $msg->media_path )){
-                        $xiaoice->send_media(media_path=>$msg->media_path);
+                        $xiaoice->send_media($msg->media_path);
                     }
                     else{
                         $xiaoice->send($msg->content); 

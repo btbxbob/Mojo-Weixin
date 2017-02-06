@@ -32,7 +32,7 @@ sub model_init{
         $self->info("更新个人信息成功");
         $self->user(Mojo::Weixin::User->new($user));
         $self->_webwxstatusnotify($self->user->id,3);
-        $self->emit(update_user=>$self->user);
+        #$self->emit(update_user=>$self->user);
     }
     my $contactinfo = $self->_webwxgetcontact();
     if(not defined $contactinfo){
@@ -41,8 +41,19 @@ sub model_init{
     }
     my($friends,$contact_groups) = @$contactinfo;
     if(ref $friends eq "ARRAY" and @$friends>0){
-        $self->friend([ map {Mojo::Weixin::Friend->new($_)} grep {$_->{id} ne $user->{id}} @$friends ]);
+        #$self->friend([ map {Mojo::Weixin::Friend->new($_)} grep {$_->{id} ne $user->{id}} @$friends ]);
+        my @tmp;
+        for(@$friends){
+            if($_->{id} ne $user->{id}){
+                push @tmp,Mojo::Weixin::Friend->new($_);
+            }
+            else{
+                $self->user(Mojo::Weixin::User->new($_));
+            }
+        }
+        $self->friend(\@tmp);
         $self->info("更新好友信息成功");
+        $self->emit(update_user=>$self->user);
         $self->emit(update_friend=>$self->friend);
     }
 
@@ -285,20 +296,7 @@ sub create_group {
         $self->error("创建群聊". (defined $displayname?"[ $displayname ]":"") . "失败");
         return;
     }
-    my $info = $self->_webwxbatchgetcontact($group_info->{id});
-    my $group;
-    if(defined $info){
-        my(undef,$groups)=@$info;
-        if(ref $groups eq "ARRAY"){
-            $group = Mojo::Weixin::Group->new($groups->[0]);
-        }
-        else{
-            $group =Mojo::Weixin::Group->new($group_info);
-        }
-    }
-    else{
-        $group =Mojo::Weixin::Group->new($group_info);
-    }
+    my $group = Mojo::Weixin::Group->new($self->_webwxbatchgetcontact_group($group_info->{id}) // $group_info);
     $self->add_group($group);
     $self->info("创建群聊[ ". $group->displayname ." ]成功");
     return $group;

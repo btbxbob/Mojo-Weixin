@@ -1,3 +1,46 @@
+2017-02-03 Mojo::Weixin v1.3.0
+1）修复/openwx/get_user_info接口返回的个人信息中account属性为空的bug 感谢 @超 反馈
+2）移植 PostQRCodeToTelegram插件到Weixin
+3）新增 is_load_plugin 方法 检测客户端是否加载某个插件
+4）GCM插件支持推送事件，修复GCM插件二维码url错误,无视GCM插件设置allow_group=>[]的情况
+5) IRCShell插件完善
+    插件参数master_irc_user更名为master_irc_nick
+    插件参数image_api更名为upload_api
+    上传api替换为https://sm.ms/api/upload接口
+    新增群组、群组名称修改irc上也能够自动同步
+    修复irc无法正常发送好友、群组消息的问题
+6）完善MakeFile.PL文件
+
+2017-01-16 Mojo::Weixin v1.2.9
+1）新增GCM插件
+2）修复/openwx/create_group创建的群组，上报new_group事件时群组id为空的bug 感谢 @霸牙 反馈
+3）Dockerfile完善，充分利用cache机制，加快build速度，设置镜像为北京时区
+
+2017-01-14 Mojo::Weixin v1.2.8
+1）对于请求失败重试，debug日志增加了n/m的重试过程，例如:
+[17/01/11 10:08:25] [warn] http://127.0.0.1:80/ 请求(0/2)失败: 404 Not Found
+[17/01/11 10:08:25] [warn] http://127.0.0.1:80/ 请求(1/2)失败: 404 Not Found
+[17/01/11 10:08:25] [warn] http://127.0.0.1:80/ 请求(2/2)失败: 404 Not Found
+2）减少Openwx插件事件上报失败的重试次数
+3）设置$client->log_unicode 为0 避免某些情况下产生的乱码问题
+4）修复Openwx插件如下api接口不可用问题，感谢 @霸牙 反馈
+/openwx/create_group
+/openwx/invite_friend
+/openwx/kick_group_member
+5）基于Docker Hub实现自动化集成
+
+2017-01-10 Mojo::Weixin v1.2.7
+1）修复XiaoiceReply插件无法转发文件图片的bug
+   XiaoiceReply插件增加allow_friend_reply/allow_group_reply参数
+2）修复二维码邮件乱码
+3）移除非开源推荐
+4）加载了UploadQRcode插件之后，Openwx插件input_qrcode事件上报也会带上上传的二维码url
+5）压缩或删除一些图片，减少这个项目的体积
+6）Openwx插件auth认证失败时返回json格式数据而非原来的文本错误信息
+7）修复客户端正常调用->stop() 退出时无法清理临时文件的bug
+   修复客户端正常调用->stop() 退出时无法正常上报事件的bug
+   修复ctrl+c时客户端报错 Mojo::IOLoop already running at /usr/local/share/perl5/Mojo/UserAgent.pm line 60
+
 2016-12-29 Mojo::Weixin v1.2.6
 1）修复由于官方改对导致误发正常发送视频文件的bug
    文件最大不能超过20M，大于512KB会采用分片上传机制，每个分片大小512K

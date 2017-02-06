@@ -34,7 +34,7 @@ sub call{
             $post_json->{post_type} = "event";
             $post_json->{event} = $event;
             $post_json->{params} = [@args];
-            my($data,$ua,$tx) = $client->http_post($data->{post_api},{ua_connect_timeout=>5,ua_request_timeout=>5,ua_inactivity_timeout=>5,ua_retry_times=>2},json=>$post_json);
+            my($data,$ua,$tx) = $client->http_post($data->{post_api},{ua_connect_timeout=>5,ua_request_timeout=>5,ua_inactivity_timeout=>5,ua_retry_times=>1},json=>$post_json);
             if($tx->success){
                 $client->debug("插件[".__PACKAGE__ ."]事件[".$event . "](@args)上报成功");
             }
@@ -53,6 +53,7 @@ sub call{
             $post_json->{post_type} = "event";
             $post_json->{event} = $event;
             $post_json->{params} = [$qrcode_path,$qrcode_data];
+            push @{ $post_json->{params} },$client->qrcode_upload_url if defined $client->qrcode_upload_url;
             my($data,$ua,$tx) = $client->http_post($data->{post_api},json=>$post_json);
             if($tx->success){
                 $client->debug("插件[".__PACKAGE__ ."]事件[".$event . "]上报成功");
@@ -239,7 +240,7 @@ sub call{
                 $ret = $data->{auth}->($hash,$c);
             };
             $client->warn("插件[Mojo::Weixin::Plugin::Openwx]认证回调执行错误: $@") if $@;
-            $c->safe_render(text=>"auth failure",status=>403) if not $ret;
+            $c->safe_render(json=>{code=>-6,status=>"auth failure"}) if not $ret;
             return $ret;
         }
         else{return 1} 

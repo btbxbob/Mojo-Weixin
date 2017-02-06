@@ -57,7 +57,8 @@ sub relogin{
     $self->login_state("relogin");
     #$self->clear_cookie();
 
-    $self->sync_key(+{});
+    $self->sync_key(+{LIST=>[]});
+    $self->synccheck_key(+{LIST=>[]});
     $self->pass_ticket('');
     $self->skey('');
     $self->wxsid('');
@@ -376,5 +377,11 @@ sub save_state{
         $self->spurt($self->to_json($json),$self->state_path);
     };
     $self->warn("客户端状态信息保存失败：$@") if $@;
+}
+
+sub is_load_plugin {
+    my $self = shift;
+    my $plugin = shift;
+    return exists $self->plugins->{ substr($plugin,0,1) eq '+'?$plugin:"Mojo::Weixin::Plugin::$plugin" };
 }
 1;

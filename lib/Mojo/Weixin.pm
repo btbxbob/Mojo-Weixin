@@ -1,5 +1,5 @@
 package Mojo::Weixin;
-our $VERSION = '1.2.6';
+our $VERSION = '1.3.0';
 use Mojo::Weixin::Base 'Mojo::EventEmitter';
 use Mojo::IOLoop;
 use Mojo::Weixin::Log;
@@ -17,6 +17,7 @@ has log_path            => undef;
 has log_encoding        => undef;      #utf8|gbk|...
 has log_head            => undef;
 has log_console         => 1;
+has log_unicode         => 0;
 has download_media      => 1;
 has disable_color       => 0;           #是否禁用终端打印颜色
 
@@ -52,6 +53,7 @@ has plugins => sub{+{}};
 has log     => sub{
     Mojo::Weixin::Log->new(
         encoding    =>  $_[0]->log_encoding,
+        unicode_support => $_[0]->log_unicode,
         path        =>  $_[0]->log_path,
         level       =>  $_[0]->log_level,
         head        =>  $_[0]->log_head,
@@ -68,6 +70,7 @@ has ua_request_timeout      => 35;
 has ua_inactivity_timeout   => 35;
 has is_first_login          => -1;
 has login_state             => 'init';
+has qrcode_upload_url       => undef;
 has qrcode_count            => 0;
 has qrcode_count_max        => 10;
 has media_size_max          => sub{20 * 1024 * 1024}; #运行上传的最大文件大小
@@ -109,8 +112,6 @@ has ua                      => sub {
 };
 
 has message_queue => sub{$_[0]->gen_message_queue()};
-
-has sync_key => sub{+{}};
 has pass_ticket => '';
 has skey => '';
 has wxsid => '';
@@ -122,6 +123,9 @@ has _sync_running => 0;
 has _synccheck_running => 0;
 has _synccheck_error_count => 0;
 has _synccheck_connection_id => undef;
+
+has sync_key => sub{+{List=>[]}};
+has synccheck_key =>sub{$_[0]->sync_key };
 
 sub deviceid { return "e" . substr(rand() . ("0" x 15),2,15);}
 sub state {
@@ -211,10 +215,13 @@ sub new {
     $SIG{INT}  = $SIG{TERM} = $SIG{HUP} = sub{
         return if $^O ne 'MSWin32' and $_[0] eq 'INT' and !-t;
         $self->info("捕获到停止信号[$_[0]]，准备停止...");
-        $self->clean_qrcode();
-        $self->clean_pid();
         $self->stop();
     };
+    $self->on(stop=>sub{
+        my $self = shift;
+        $self->clean_qrcode();
+        $self->clean_pid();
+    });
     $self->on(state_change=>sub{
         my $self = shift;
         $self->save_state();

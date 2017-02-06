@@ -124,6 +124,11 @@ sub _http_request{
         my $tx;
         my $cb = pop if ref $_[-1] eq "CODE";
         for(my $i=0;$i<=$opt{ua_retry_times};$i++){
+
+            #fix bug Mojo::IOLoop already running Mojo/UserAgent.pm
+            #https://github.com/kraih/mojo/issues/1029
+            $self->ua->ioloop->stop if $self->ua->ioloop->is_running;
+
             if($opt{ua_connect_timeout} or  $opt{ua_request_timeout} or $opt{ua_inactivity_timeout}){
                 my $connect_timeout = $self->ua->connect_timeout;
                 my $request_timeout = $self->ua->request_timeout;
@@ -147,11 +152,11 @@ sub _http_request{
                 return wantarray?($r,$self->ua,$tx):$r;
             }
             elsif(defined $tx){
-                $self->warn($tx->req->url->to_abs . " 请求失败: " . ($tx->error->{code} || "-") . " " . $self->encode_utf8($tx->error->{message}));
+                $self->warn($tx->req->url->to_abs . " 请求($i/$opt{ua_retry_times})失败: " . ($tx->error->{code} || "-") . " " . $self->encode_utf8($tx->error->{message}));
                 next;
             }
         }
-        $self->warn($tx->req->url->to_abs . " 请求失败: " . ($tx->error->{code}||"-") . " " . $self->encode_utf8($tx->error->{message})) if defined $tx;
+        #$self->warn($tx->req->url->to_abs . " 请求最终失败: " . ($tx->error->{code}||"-") . " " . $self->encode_utf8($tx->error->{message})) if defined $tx;
         $cb->($r,$ua,$tx) if defined $cb;
         return wantarray?(undef,$self->ua,$tx):undef;
     }
