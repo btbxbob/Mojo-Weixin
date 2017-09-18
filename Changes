@@ -1,3 +1,68 @@
+2017-08-31 Mojo::Weixin v1.3.7
+1）修复controller运行过程中报max_client异常的bug
+
+2017-08-30 Mojo::Weixin v1.3.6
+1）Openwx上报好友消息增加sender_category属性，用于区分发送者是好友还是公众号
+2）初始化好友信息时，如果好友中没有"文件传输助手"，则主动增加这样一个好友，方便做发送消息测试
+3）接收消息（synccheck）请求异常时，会延迟10s再次检查消息，这个时间太长影响消息正常接收，改为3s 感谢 @Yeso 反馈
+4）增加controller状态检查，当controller退出后，所有client也自动退出
+5）修复linux环境下无法通过/openwx/stop_client接口来终止程序的bug（升级后请手动清除模板文件） 感谢 @Aspirin 协助
+6）修复 /openwx/stop_client 返回结果不正确的问题
+7）controller增加max_clients 参数，默认允许创建的最大客户端数量100
+
+2017-07-03 Mojo::Weixin v1.3.5
+1）对于接收消息中无法识别的消息代码，打印日志中增加具体的代码值，同时，客户端会触发 unknown_retcode事件
+2）修复由于正则匹配不严谨导致在某些情况下，无法正确获取群成员id的bug
+3）new中增加send_interval参数可以自定义全局发送消息时间间隔
+4）Openwx插件中 /openwx/send_friend_message 和 /openwx/send_group_message接口增加async=1来实现异步发送消息
+
+2017-05-11 Mojo::Weixin v1.3.4
+1）修复Openwx中存在的编码转换问题
+2）获取通讯录信息接口调用 POST 变更为 GET
+3）new中新增 is_update_all_friend 参数，控制是否获取全部的好友数据
+  当前发现分页获取全部好友数据可能会存在问题
+  增加这样一个调试参数，当获取通讯录信息异常时，可以收到将该参数设置为0,只获取第一页的好友数据
+4）支持接收和自动下载接收到的文件
+
+2017-04-14 Mojo::Weixin v1.3.3
+1）修复微信confirming状态bug (https://github.com/sjdy521/Mojo-Weixin/issues/73)
+2）Openwx插件 增加 跨域响应头 Access-Control-Allow-Origin: *
+3）XiaoiceReply插件产生的智能回复消息 $msg->from 属性设置为"bot"
+4）state.json文件中增加previous_state属性，记录当前状态的前一个状态
+5）新增MiPush/HwPush/FmPush插件，支持小米手机、华为手机、魅族手机消息推送 感谢 @heipidage
+6）修复ShowQRCodeInTerm不可用问题
+
+2017-02-14 Mojo::Weixin v1.3.2
+1）GCM插件增加is_ban_official参数用于控制是否推送公众号消息
+2）IRCShel插件完善，非常感谢 @eleven @csrgxtu 等人在整个过程中的支持
+    使用sendFile XXX 或者 !!XXX 两种形式发送文件
+    load_friend参数默认为0
+    考虑到个人隐私安全upload_api默认不开启
+    文件上传图床，由于https://sm.ms/api/upload接口不支持图片以外的文件，换成兼容http://img.vim-cn.com/的接口形式
+    新增auto_join_channel参数，默认为1，收到未加入的频道消息会自动加入频道并接收消息，主要为了防止漏收
+    修复HexChat客户端使用/list无法获取到人数为空频道信息
+    修复用户更新昵称中存在空格等特殊字符，导致irc虚拟用户异常的问题
+    增加allow_group/ban_group参数
+    增加登录验证支持
+    增加ssl加密支持
+3）Openqq插件增加https支持
+
+2017-02-08 Mojo::Weixin v1.3.1
+1）IRCShell插件完善
+   /query xxxx 如果用户不存在时，会实时从好友中搜索并创建用户
+   设置了upload_api时，url地址会直接替换原始的本地文件路径
+2）修复产生 "Mojo::Util::slurp is DEPRECATED" 的警告
+3）修复分片上传分片处理上的错误导致上传文件不正确或无法上传文件问题
+4）改进了判断消息是否为接收消息的判断逻辑，兼容更多服务端数据异常的情况
+5）synccheck/sync时采用的实际上是两个独立的key：syncCheckKey和syncKey
+   程序原来是混为一起，可能导致重复接收消息或接收消息异常，现已修复
+6）GCM插件添加发送者类别支持回复功能
+7）修复在开启事件上报之后短时内内重启程序，无法重用之前的登录cookie实现免扫码登录的bug
+8）修复controller设置了log_path的情况下，创建的客户端运行日志无法打印到log_path指定路径的bug
+9）Openwx插件相关改进
+   新增好友验证事件 friend_request 上报
+   新增/openwx/accept_friend_request 接口用于接受好友请求
+
 2017-02-03 Mojo::Weixin v1.3.0
 1）修复/openwx/get_user_info接口返回的个人信息中account属性为空的bug 感谢 @超 反馈
 2）移植 PostQRCodeToTelegram插件到Weixin

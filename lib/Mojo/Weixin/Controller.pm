@@ -12,6 +12,7 @@ use IO::Socket::IP;
 use Time::HiRes ();
 use Storable qw();
 use POSIX qw();
+use File::Spec ();
 use if $^O eq "MSWin32",'Win32::Process';
 use if $^O eq "MSWin32",'Win32';
 use base qw(Mojo::Weixin::Util Mojo::Weixin::Request);
@@ -27,8 +28,6 @@ has auth     => undef;
 has server =>  sub { Mojo::Weixin::Server->new };
 has listen => sub { [{host=>"0.0.0.0",port=>2000},] };
 
-has keep_cookie => 0;
-has cookie_path => undef;
 has http_debug          => sub{$ENV{MOJO_WEIXIN_CONTROLLER_HTTP_DEBUG} || 0 } ;
 has ua_debug            => sub{$_[0]->http_debug};
 has ua_debug_req_body   => sub{$_[0]->ua_debug};
@@ -48,6 +47,8 @@ has ua  => sub {
 };
 
 has tmpdir              => sub {File::Spec->tmpdir();};
+has keep_cookie         => 0;
+has cookie_path         => sub {File::Spec->catfile($_[0]->tmpdir,join('','mojo_weixin_controller_cookie','.dat'))};
 has pid_path            => sub {File::Spec->catfile($_[0]->tmpdir,join('','mojo_weixin_controller_process','.pid'))};
 has backend_path        => sub {File::Spec->catfile($_[0]->tmpdir,join('','mojo_weixin_controller_backend','.dat'))};
 has template_path        => sub {File::Spec->catfile($_[0]->tmpdir,join('','mojo_weixin_controller_template','.pl'))};
@@ -59,6 +60,7 @@ has log_encoding        => undef;      #utf8|gbk|...
 has log_head            => "[wxc][$$]";
 has log_console         => 1;
 has disable_color       => 0;
+has max_clients         => 100;
 
 has version             => sub{$Mojo::Weixin::Controller::VERSION};
 
@@ -170,18 +172,25 @@ sub clean_pid {
 
 sub kill_process {
     my $self = shift;
+    my $ret = 0;
     if(!$_[0] or $_[0]!~/^\d+$/){
         $self->error("pid无效，无法终止进程");
         return;
     }
-    #if($^O  eq "MSWin32"){
+    if($^O  eq "MSWin32"){
     #    my $exitcode = 0;
     #    Win32::Process::KillProcess($_[0],$exitcode);
     #    return $exitcode;
-    #}
-    #else{ 
-        kill POSIX::SIGINT,$_[0] ;
-    #}
+        $ret = kill POSIX::SIGINT,$_[0] ;
+    }
+    else{ 
+        $ret = kill POSIX::SIGTERM,$_[0] ;
+    }
+    
+    #client进程退出没有那么快，马上检查的话，仍然是存在的，干脆先不检查了
+    #return !$self->check_process($_[0]);
+
+    return $ret;
 }
 sub check_process {
     my $self = shift;
@@ -200,6 +209,9 @@ sub start_client {
     my $param = shift;
     if(!$param->{client}){
         return {code => 1, status=>'client not found',};
+    }
+    elsif($self->max_clients < keys %{$self->backend}){
+        return {code => 5, status=>'max clients exceed'};
     }
     elsif(exists $self->backend->{$param->{client}}){
         if( $self->check_process($self->backend->{$param->{client}}{pid}) ){
@@ -234,6 +246,15 @@ sub start_client {
     $ENV{MOJO_WEIXIN_PLUGIN_OPENWX_PORT} = $backend_port;
     $ENV{MOJO_WEIXIN_PLUGIN_OPENWX_POST_API} = $post_api;
     $ENV{MOJO_WEIXIN_PLUGIN_OPENWX_POLL_API} = $poll_api;
+
+    $ENV{MOJO_WEIXIN_LOG_PATH} = $self->log_path;
+    $ENV{MOJO_WEIXIN_LOG_ENCODING} = $self->log_encoding;
+    $ENV{MOJO_WEIXIN_LOG_CONSOLE} = $self->log_console;
+    $ENV{MOJO_WEIXIN_DISABLE_COLOR} = $self->disable_color;
+    $ENV{MOJO_WEIXIN_HTTP_DEBUG} = $self->http_debug;
+    $ENV{MOJO_WEIXIN_LOG_LEVEL} = $self->log_level;
+    $ENV{MOJO_WEIXIN_CONTROLLER_PID} = $$;
+
     $ENV{MOJO_WEIXIN_TMPDIR} = $self->tmpdir if not defined $ENV{MOJO_WEIXIN_TMPDIR};
     $ENV{MOJO_WEIXIN_STATE_PATH} = File::Spec->catfile($ENV{MOJO_WEIXIN_TMPDIR},join('','mojo_weixin_state_',$ENV{MOJO_WEIXIN_ACCOUNT},'.json')) if not defined $ENV{MOJO_WEIXIN_STATE_PATH};
     $ENV{MOJO_WEIXIN_QRCODE_PATH} = File::Spec->catfile($ENV{MOJO_WEIXIN_TMPDIR},join('','mojo_weixin_qrcode_',$ENV{MOJO_WEIXIN_ACCOUNT},'.jpg')) if not defined $ENV{MOJO_WEIXIN_QRCODE_PATH};
@@ -243,9 +264,9 @@ sub start_client {
         my $template =<<'MOJO_WEIXIN_CLIENT_TEMPLATE';
 #!/usr/bin/env perl
 use Mojo::Weixin;
+$|=1;
 my $client = Mojo::Weixin->new(log_head=>"[$ENV{MOJO_WEIXIN_ACCOUNT}][$$]");
 $0 = "wxclient(" . $client->account . ")" if $^O ne "MSWin32";
-$SIG{INT} = 'IGNORE' if ($^O ne 'MSWin32' and !-t);
 $client->load(["ShowMsg","UploadQRcode"]);
 $client->load("Openwx",data=>{listen=>[{host=>"127.0.0.1",port=>$ENV{MOJO_WEIXIN_PLUGIN_OPENWX_PORT} }], post_api=>$ENV{MOJO_WEIXIN_PLUGIN_OPENWX_POST_API} || undef,post_event=>$ENV{MOJO_WEIXIN_PLUGIN_OPENWX_POST_EVENT} // 1,post_media_data=> $ENV{MOJO_WEIXIN_PLUGIN_OPENWX_POST_MEDIA_DATA} // 1, poll_api=>$ENV{MOJO_WEIXIN_PLUGIN_OPENWX_POLL_API} || undef, poll_interval => $ENV{MOJO_WEIXIN_PLUGIN_OPENWX_POLL_INTERVAL} },call_on_load=>1);
 $client->run();

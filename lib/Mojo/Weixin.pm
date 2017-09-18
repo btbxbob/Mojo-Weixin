@@ -1,5 +1,5 @@
 package Mojo::Weixin;
-our $VERSION = '1.3.0';
+our $VERSION = '1.3.7';
 use Mojo::Weixin::Base 'Mojo::EventEmitter';
 use Mojo::IOLoop;
 use Mojo::Weixin::Log;
@@ -20,9 +20,11 @@ has log_console         => 1;
 has log_unicode         => 0;
 has download_media      => 1;
 has disable_color       => 0;           #是否禁用终端打印颜色
+has send_interval       => 3;           #全局发送消息间隔
 
 has is_init_group_member => 0;
 has is_update_group_member => 1;
+has is_update_all_friend => 1;
 
 has account             => sub{ $ENV{MOJO_WEIXIN_ACCUNT} || 'default'};
 has start_time          => time;
@@ -36,12 +38,13 @@ has ioloop              => sub {Mojo::IOLoop->singleton};
 has keep_cookie         => 1;
 has fix_media_loop      => 1;
 has synccheck_interval  => 1;
-has synccheck_delay     => 10;
+has synccheck_delay     => 1;
 has _synccheck_interval => sub{ $_[0]->synccheck_interval};
 has sync_interval       => 0;
 has emoji_to_text       => 1;
 has stop_with_mobile    => 0;
 has http_max_message_size  => undef; #16777216;
+has controller_pid      => sub{$ENV{MOJO_WEIXIN_CONTROLLER_PID}};
 
 has user    => sub {+{}};
 has friend  => sub {[]};
@@ -71,6 +74,7 @@ has ua_inactivity_timeout   => 35;
 has is_first_login          => -1;
 has login_state             => 'init';
 has qrcode_upload_url       => undef;
+has qrcode_uuid             => undef;
 has qrcode_count            => 0;
 has qrcode_count_max        => 10;
 has media_size_max          => sub{20 * 1024 * 1024}; #运行上传的最大文件大小
@@ -125,7 +129,16 @@ has _synccheck_error_count => 0;
 has _synccheck_connection_id => undef;
 
 has sync_key => sub{+{List=>[]}};
-has synccheck_key =>sub{$_[0]->sync_key };
+sub synccheck_key {
+    my $self = shift;
+    if(@_==0){
+        return $self->{synccheck_key} // $self->sync_key;
+    }
+    else{
+        $self->{synccheck_key} = $_[0];
+        return $self;
+    }
+}
 
 sub deviceid { return "e" . substr(rand() . ("0" x 15),2,15);}
 sub state {
@@ -210,10 +223,15 @@ sub new {
         $self->error(Carp::longmess($err));
     });
     $self->check_pid();
+    $self->check_controller(1);
+    $self->load_cookie();
     $self->save_state();
     $SIG{CHLD} = 'IGNORE';
     $SIG{INT}  = $SIG{TERM} = $SIG{HUP} = sub{
-        return if $^O ne 'MSWin32' and $_[0] eq 'INT' and !-t;
+        if($^O ne 'MSWin32' and $_[0] eq 'INT' and !-t){
+            $self->warn("后台程序捕获到信号[$_[0]]，已将其忽略，程序继续运行");
+            return;
+        }
         $self->info("捕获到停止信号[$_[0]]，准备停止...");
         $self->stop();
     };
@@ -224,7 +242,7 @@ sub new {
     });
     $self->on(state_change=>sub{
         my $self = shift;
-        $self->save_state();
+        $self->save_state(@_);
     });
     $self->on(qrcode_expire=>sub{
         my($self) = @_;
@@ -245,6 +263,12 @@ sub new {
             $msg->reply(" ") if $self->fix_media_loop == 2;
         });
     }
+    $self->on(update_friend=>sub{
+        my $self = shift;
+        my $filehelper = Mojo::Weixin::Friend->new(name=>"文件传输助手",id=>"filehelper");
+        $self->add_friend($filehelper) if not $self->search_friend(id=>"filehelper");
+    });
+    $Mojo::Weixin::Message::SEND_INTERVAL = $self->send_interval;
     $Mojo::Weixin::_CLIENT = $self;
     $self;
 }

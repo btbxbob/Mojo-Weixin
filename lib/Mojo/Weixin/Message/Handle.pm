@@ -150,7 +150,8 @@ sub _parse_sync_data {
         return;
     }
     elsif($json->{BaseResponse}{Ret} !=0){
-        $self->warn("收到无法识别消息，已将其忽略");
+        $self->warn("收到无法识别消息代码[$json->{BaseResponse}{Ret}]，已将其忽略");
+        $self->emit(unknown_retcode=>$json->{BaseResponse}{Ret});
         return;
     }
     $self->sync_key($json->{SyncKey}) if $json->{SyncKey}{Count}!=0;
@@ -161,7 +162,7 @@ sub _parse_sync_data {
     #群组或联系人变更
     if($json->{ModContactCount}!=0){
         for my $e (@{$json->{ModContactList}}){
-            if($self->is_group($e->{UserName})){#群组
+            if($self->is_group_id($e->{UserName})){#群组
                 my $group = {member=>[]};
                 for(keys %KEY_MAP_GROUP){
                     $group->{$_} = $e->{$KEY_MAP_GROUP{$_}} // "";
@@ -205,7 +206,7 @@ sub _parse_sync_data {
 
     if($json->{DelContactCount}!=0){
         for my $e (@{$json->{DelContactList}}){
-            if($self->is_group($e->{UserName})){
+            if($self->is_group_id($e->{UserName})){
                 my $g = $self->search_group(id=>$e->{UserName});
                 $self->remove_group($g) if defined $g;
             }
@@ -278,7 +279,15 @@ sub _parse_sync_data {
             elsif($e->{MsgType} == 10002){#撤回消息
                 $msg->{format} = "revoke";
             }
-            elsif($e->{MsgType} == 49) {#应用分享
+            elsif($e->{MsgType} == 49 and $e->{AppMsgType} == 6) {#文件分享
+                $msg->{format} = "media";
+                $msg->{media_type} = "file";
+                $msg->{media_code} = $e->{AppMsgType};
+                $msg->{media_id} = $e->{MediaId} . ":" . $e->{AppMsgType};
+                $msg->{media_name} = $e->{FileName};
+                $msg->{media_size} = $e->{FileSize};
+            }
+            elsif($e->{MsgType} == 49 and $e->{AppMsgType} == 5) {#应用分享
                 $msg->{format} = "app";
                 $msg->{app_title} = $e->{FileName};
                 $msg->{app_url}   = $e->{Url};
@@ -293,15 +302,27 @@ sub _parse_sync_data {
                 $msg->{card_sex} = $self->code2sex($e->{RecommendInfo}{Sex});
                 #$msg->{card_avatar} = '';
             }
-            #elsif($e->{MsgType} == 51){#系统通知
-            #    $msg->{format} = "text";
-            #}
+            elsif($e->{MsgType} == 51){#会话、联系人信息同步
+                if($msg->{StatusNotifyCode} == 4 or $msg->{StatusNotifyCode} == 2){#联系人、群组信息需要同步
+                    my @id = split /,/,$msg->{StatusNotifyUserName};
+                    my @group_ids;
+                    my @friend_ids;
+                    for (@id){
+                        next if $_ eq $self->user->id;
+                        if($self->is_group_id($_)){push @group_ids,$_ if not $self->search_group(id=>$_);}
+                        else{push @friend_ids,$_ if not $self->search_friend(id=>$_);}
+                    } 
+                    $self->update_group(@group_ids) if @group_ids;
+                    $self->update_friend(@friend_ids) if @friend_ids;
+                }
+                next;
+            }
             else{next;}
             if($e->{FromUserName} eq $self->user->id){#发送的消息
                 $msg->{source} = 'outer';
                 $msg->{class} = "send";
                 $msg->{sender_id} = $self->user->id;
-                if($self->is_group($e->{ToUserName})){
+                if($self->is_group_id($e->{ToUserName})){
                     $msg->{type} = "group_message";
                     $msg->{group_id} = $e->{ToUserName};
                 }
@@ -315,12 +336,12 @@ sub _parse_sync_data {
                 $msg->{class} = "recv";
                 $msg->{receiver_id} = $self->user->id;
                 $msg->{type} = "group_message";
-                if($self->is_group($e->{FromUserName})){#接收到群组消息
+                if($self->is_group_id($e->{FromUserName})){#接收到群组消息
                     $msg->{group_id} = $e->{FromUserName};
                     if($e->{MsgType} == 10000){#群提示信息
                         $msg->{type} = "group_notice";
                     }
-                    elsif( $msg->{content}=~/^(\@.+):<br\/>(.*)$/s ){
+                    elsif( $msg->{content}=~/^(\@.+?):<br\/>(.*)$/s ){
                         my ($member_id,$content) = ($1,$2);
                         if(defined $member_id and defined $content){
                                 $msg->{sender_id} = $member_id;
@@ -339,6 +360,7 @@ sub _parse_sync_data {
                 $msg->{content} = '[视频]' if $msg->{media_type} eq "video";
                 $msg->{content} = '[小视频]' if $msg->{media_type} eq "microvideo";
                 $msg->{content} = '[表情]' if $msg->{media_type} eq "emoticon";
+                $msg->{content} = '[文件]' if $msg->{media_type} eq "file";
             }
             elsif(defined $msg->{content}){
                 eval{$msg->{content} = Mojo::Util::html_unescape($msg->{content});};

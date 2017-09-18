@@ -1,4 +1,5 @@
 package Mojo::Weixin::Client;
+use POSIX ();
 use Mojo::Weixin::Client::Remote::_login;
 use Mojo::Weixin::Client::Remote::_logout;
 use Mojo::Weixin::Client::Remote::_get_qrcode_uuid;
@@ -22,10 +23,11 @@ sub login{
         $self->is_first_login(0);
     }
 
-    if($self->is_first_login){
-        $self->load_cookie();
-    }
+    #if($self->is_first_login){
+    #    #$self->load_cookie();#转移到new的时候就调用，这里不再需要
+    #}
     while(1){
+        $self->check_controller();
         my $ret = $self->_login();
         $self->clean_qrcode();
         sleep 2;
@@ -58,7 +60,7 @@ sub relogin{
     #$self->clear_cookie();
 
     $self->sync_key(+{LIST=>[]});
-    $self->synccheck_key(+{LIST=>[]});
+    $self->synccheck_key(undef);
     $self->pass_ticket('');
     $self->skey('');
     $self->wxsid('');
@@ -336,6 +338,7 @@ sub clean_pid {
 }
 sub save_state{
     my $self = shift;
+    my($previous_state,$current_state) = @_;
     my @attr = qw( 
         account 
         version 
@@ -369,6 +372,7 @@ sub save_state{
         for my $attr (@attr){
             $json->{$attr} = $self->$attr;
         }
+        $json->{previous_state} = $previous_state;
         $json->{pid} = $$;
         $json->{os}  = $^O;
         for my $p (keys %{ $self->plugins }){
@@ -382,6 +386,32 @@ sub save_state{
 sub is_load_plugin {
     my $self = shift;
     my $plugin = shift;
-    return exists $self->plugins->{ substr($plugin,0,1) eq '+'?$plugin:"Mojo::Weixin::Plugin::$plugin" };
+    if(substr($plugin,0,1) eq '+'){
+        substr($plugin,0,1) = "";
+    }
+    else{
+        $plugin = "Mojo::Weixin::Plugin::$plugin";
+    }
+    return exists $self->plugins->{$plugin};
+}
+
+sub check_controller {
+    my $self = shift;
+    my $once = shift;
+    if($^O ne 'MSWin32' and defined $self->controller_pid ){
+        if($once){
+            $self->info("启用Controller[". $self->controller_pid ."]状态检查");
+            $self->interval(5=>sub{
+                $self->check_controller();
+            });
+        }
+        else{
+            my $ppid = POSIX::getppid();
+            if( $ppid=~/^\d+$/ and $ppid == 1 or $ppid != $self->controller_pid ) {
+                $self->warn("检测到脱离Controller进程管理，程序即将终止");
+                $self->stop();
+            }
+        }
+    }
 }
 1;
